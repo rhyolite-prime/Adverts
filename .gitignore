@@ -1,0 +1,6 @@
+# Generated advert outputs (renders, .blend autosaves, music, MP4s)
+advert/output/
+*.blend1
+*.blend2
+__pycache__/
+*.pyc
