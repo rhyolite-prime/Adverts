@@ -32,6 +32,7 @@ FRAMES = int(round(S.SHOT_SECONDS * S.FPS))  # 120
 OVERLAY_DEPTH = 3.0          # distance of the overlay plane in front of the camera
 SENSOR_HALF = 18.0           # 36 mm sensor, half width, for 16:9 frames
 PI = math.pi
+SUBJECT_DROP = 0.22          # metres the camera aim is lowered for application stages
 
 
 def stage_frames(index):
@@ -301,7 +302,9 @@ class Builder:
         sock.keyframe_insert("default_value", frame=self.f1)
 
     # --- camera -----------------------------------------------------------
-    def camera(self, start, end, target, lens=35.0):
+    def camera(self, start, end, target, lens=35.0, drop=SUBJECT_DROP):
+        """`drop` tilts the aim down so the subject sits higher, above the lower-third band."""
+        target = (target[0], target[1], target[2] - drop)
         name = f"Cam{self.index + 1:02d}"
         cd = bpy.data.cameras.new(name)
         cd.lens = lens
@@ -636,7 +639,7 @@ def tent_geom(w=1.1, d=1.0, h=1.5):
 
 def stage_intro(b, shot):
     f0, f1 = b.f0, b.f1
-    b.camera(start=(0.0, -7.6, 1.5), end=(0.0, -6.6, 1.6), target=(0.0, 0.0, 1.4))
+    b.camera(start=(0.0, -7.6, 1.5), end=(0.0, -6.6, 1.6), target=(0.0, 0.0, 1.4), drop=0.0)
     b.world((0.015, 0.015, 0.02))
     b.floor(M("dark_steel"))
     b.light("KeyTop", "AREA", (0, -1.0, 6.0), (1.0, 0.95, 0.9), 900.0, size=4.0, target=(0, 0, 0))
@@ -959,7 +962,7 @@ def stage_manufacturing(b, shot):
 
 def stage_outro(b, shot):
     f0, f1 = b.f0, b.f1
-    b.camera(start=(0.0, -7.2, 2.0), end=(0.0, -6.4, 2.0), target=(0.0, 0.0, 1.9))
+    b.camera(start=(0.0, -7.2, 2.0), end=(0.0, -6.4, 2.0), target=(0.0, 0.0, 1.9), drop=0.0)
     b.world((0.015, 0.015, 0.02))
     b.floor(M("dark_steel"))
     b.light("KeyTop", "AREA", (0, -1.0, 6.0), (1.0, 0.95, 0.9), 800.0, size=4.0, target=(0, 0, 0))
@@ -967,7 +970,7 @@ def stage_outro(b, shot):
     pts = []
     for i in range(8):
         a = 2 * PI * i / 8
-        pts.append((0.0 + 1.1 * math.cos(a), 0.0, 2.3 + 0.9 * math.sin(a)))
+        pts.append((0.0 + 0.85 * math.cos(a), 0.0, 2.05 + 0.85 * math.sin(a)))
     ring = hose(b, "HoseLoop", pts, M("hose_orange"), 0.035, reveal=(f0, f0 + 36))
     ring.data.splines[0].use_cyclic_u = True
     # Small wordmark above the loop
@@ -979,7 +982,7 @@ def stage_outro(b, shot):
     cu.size = 0.35
     wm = bpy.data.objects.new("OutroWordmark", cu)
     wm.rotation_euler = (PI / 2, 0, 0)
-    wm.location = (0, 0.0, 3.5)
+    wm.location = (0, 0.0, 3.1)
     b.link(wm)
     key(wm, f0 + 30, scale=(0.01, 0.01, 0.01))
     key(wm, f0 + 50, scale=(1, 1, 1))
