@@ -343,10 +343,12 @@ class Builder:
         band = self.obj("OverlayBand", G.box(2 * half_w + 0.4, 0.62, 0.001), band_material(),
                         loc=(0, -0.64, -OVERLAY_DEPTH - 0.02), parent=self.cam)
 
+        self.obj("OverlayTopBand", G.box(2 * half_w + 0.4, 0.16, 0.001), band_material(),
+                 loc=(0, 0.72, -OVERLAY_DEPTH - 0.02), parent=self.cam)
         label = self.text("OverlayLabel", shot["label"], 0.05, M("text_accent"),
-                          (-half_w + 0.14, 0.8, z), align_x="LEFT")
-        key(label, f0, location=(-half_w - 0.6, 0.8, z))
-        key(label, f0 + 12, location=(-half_w + 0.14, 0.8, z))
+                          (-half_w + 0.14, 0.72, z), align_x="LEFT", align_y="CENTER")
+        key(label, f0, location=(-half_w - 0.6, 0.72, z))
+        key(label, f0 + 12, location=(-half_w + 0.14, 0.72, z))
 
         lines = shot["title"].split("\n")
         base = title_size if len(lines) == 1 else min(title_size, 0.33 / (len(lines) * 1.3))
@@ -713,9 +715,9 @@ def stage_oxyacetylene(b, shot):
     key(seam, f0 + 6, scale=(0.01, 1, 1))
     key(seam, f1 - 20, scale=(1.0, 1, 1))
 
-    red = gas_cylinder(b, "CylRed", (-2.0, -1.2, 0.2), M("cyl_red"), M("band_white"))
-    blue = gas_cylinder(b, "CylBlue", (-1.55, -1.2, 0.2), M("cyl_blue"), M("band_white"))
-    trolley(b, "CartA", (-1.8, -1.2, 0.0), width=0.9)
+    red = gas_cylinder(b, "CylRed", (-1.95, 0.95, 0.2), M("cyl_red"), M("band_white"))
+    blue = gas_cylinder(b, "CylBlue", (-1.5, 0.95, 0.2), M("cyl_blue"), M("band_white"))
+    trolley(b, "CartA", (-1.72, 0.95, 0.0), width=0.9)
 
     welder = Human(b, "OxyWelder", (0.1, -0.5, 0.0), PI, skin=M("skin_deep"), top=M("leather"),
                    bottom=M("leather"), shoe=M("black"), hat=M("black"), hat_style="helmet", visor=M("visor"))
@@ -730,9 +732,9 @@ def stage_oxyacetylene(b, shot):
     b.light("FlameGlow", "POINT", (0.3, 0.2, 1.3), (0.45, 0.7, 1.0), 80.0, size=0.5)
 
     # Two hoses: red (fuel) from the acetylene valve, blue (oxygen) from the oxygen valve
-    hose(b, "HoseRed", [red, (-1.2, -0.7, 0.2), (-0.2, -0.2, 0.25), tuple(hand)], M("hose_red"), 0.025,
+    hose(b, "HoseRed", [red, (-1.2, 0.5, 0.25), (-0.4, 0.0, 0.4), tuple(hand)], M("hose_red"), 0.025,
          reveal=(f0, f0 + 20))
-    hose(b, "HoseBlue", [blue, (-1.0, -0.9, 0.2), (-0.1, -0.35, 0.3), (0.05, -0.1, 1.0), tuple(hand)],
+    hose(b, "HoseBlue", [blue, (-1.1, 0.45, 0.25), (-0.3, -0.05, 0.4), (0.05, -0.1, 1.0), tuple(hand)],
          M("hose_blue"), 0.025, reveal=(f0 + 4, f0 + 24))
     sparks(b, M("spark"), lambda fr: (0.25, 0.6, 1.1), f0, f1, 20, random.Random(5), spread=0.7, lift=0.8)
     b.light("BenchFill", "AREA", (0.0, -2.0, 3.0), (1.0, 0.92, 0.85), 300.0, size=3.0, target=(0, 0.5, 0.8))

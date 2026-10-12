@@ -207,18 +207,31 @@ def _enable_gpu(bpy):
     print("[advert] no GPU found, falling back to CPU")
 
 
+def _bpy_importable():
+    try:
+        import bpy  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
 def main():
-    argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    # Blender passes script arguments after "--". Plain python3 passes them directly.
+    if "--" in sys.argv:
+        argv = sys.argv[sys.argv.index("--") + 1:]
+    elif _bpy_importable():
+        argv = []
+    else:
+        argv = sys.argv[1:]
     args = parse_args(argv)
 
     if args.mux_only:
         start, end = frame_range(args)
-        mux(args.out, start, end)
+        if mux(args.out, start, end) is None:
+            sys.exit(1)
         return
 
-    try:
-        import bpy  # noqa: F401
-    except ImportError:
+    if not _bpy_importable():
         raise SystemExit(
             "This script must run inside Blender 5.x (blender -b --python build_ad.py -- ...).\n"
             "To only mux existing frames, use: python3 build_ad.py --mux-only")
