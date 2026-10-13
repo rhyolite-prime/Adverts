@@ -40,7 +40,7 @@ Each application gets its own 5 second stage. The intro and outro bookend the se
 
 **Visual:** Fabrication workshop. A welder in a dark helmet cuts a steel plate on a workbench with a cutting torch. Sparks spray across the frame. An orange hose runs from a gas cylinder on a trolley to the torch.
 
-**Characters:** Welder in a helmet and work jacket
+**Characters:** Welder in a visor helmet, leather jacket, apron and gloves
 
 **Music cue:** Bass and clap drive in; sparks are synced to the hi-hats.
 
@@ -52,7 +52,7 @@ Each application gets its own 5 second stage. The intro and outro bookend the se
 
 **Visual:** Two cylinders on a cart, one red (fuel) and one blue (oxygen). Red and blue 5/16 inch hoses run to a welding torch. The welder lights a bright flame and runs a bead along a pipe seam, and the glow flickers.
 
-**Characters:** Welder with a torch and gloves
+**Characters:** Welder in a visor helmet, leather jacket, apron and gloves
 
 **Music cue:** Arpeggio lead enters over the progression.
 
@@ -88,7 +88,7 @@ Each application gets its own 5 second stage. The intro and outro bookend the se
 
 **Visual:** Campsite at golden hour, with pine trees and a tent. Two campers cook on a portable gas grill fed by a red hose from a propane cylinder. A small generator and camp stove sit nearby.
 
-**Characters:** Two campers, one seated on a log
+**Characters:** Two campers by the grill: hi-vis jacket and cap, overalls and a straw hat
 
 **Music cue:** Tempo steady, with a higher melody over the chords.
 
@@ -100,7 +100,7 @@ Each application gets its own 5 second stage. The intro and outro bookend the se
 
 **Visual:** Poultry house at dawn. A farmer checks a gas brooder heater hanging above a group of chicks. An orange hose runs through the wall from an outside cylinder. A crop dryer burner glows in the next bay.
 
-**Characters:** Farmer in a straw hat and overalls, with chicks
+**Characters:** Farmer in a straw hat, overalls and leather gloves, with chicks
 
 **Music cue:** Mellow arrangement with a gentle bass line.
 
@@ -112,7 +112,7 @@ Each application gets its own 5 second stage. The intro and outro bookend the se
 
 **Visual:** Factory floor. Boxes move along a conveyor past a furnace. A worker in a hard hat uses a pneumatic tool, and a blue 5/16 inch hose carries compressed air from an overhead pipe rack.
 
-**Characters:** Factory worker in a hard hat and hi-vis vest
+**Characters:** Factory worker in a hard hat, hi-vis vest and gloves
 
 **Music cue:** Driving rhythm with a rising filter.
 

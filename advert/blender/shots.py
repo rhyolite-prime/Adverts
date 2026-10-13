@@ -46,7 +46,7 @@ SHOTS = [
             "with a cutting torch. Sparks spray across the frame. An orange hose runs from a "
             "gas cylinder on a trolley to the torch."
         ),
-        "characters": "Welder in a helmet and work jacket",
+        "characters": "Welder in a visor helmet, leather jacket, apron and gloves",
         "music": "Bass and clap drive in; sparks are synced to the hi-hats.",
     },
     {
@@ -60,7 +60,7 @@ SHOTS = [
             "hoses run to a welding torch. The welder lights a bright flame and runs a bead along "
             "a pipe seam, and the glow flickers."
         ),
-        "characters": "Welder with a torch and gloves",
+        "characters": "Welder in a visor helmet, leather jacket, apron and gloves",
         "music": "Arpeggio lead enters over the progression.",
     },
     {
@@ -99,7 +99,7 @@ SHOTS = [
             "Campsite at golden hour, with pine trees and a tent. Two campers cook on a portable gas "
             "grill fed by a red hose from a propane cylinder. A small generator and camp stove sit nearby."
         ),
-        "characters": "Two campers, one seated on a log",
+        "characters": "Two campers by the grill: hi-vis jacket and cap, overalls and a straw hat",
         "music": "Tempo steady, with a higher melody over the chords.",
     },
     {
@@ -113,7 +113,7 @@ SHOTS = [
             "chicks. An orange hose runs through the wall from an outside cylinder. A crop dryer "
             "burner glows in the next bay."
         ),
-        "characters": "Farmer in a straw hat and overalls, with chicks",
+        "characters": "Farmer in a straw hat, overalls and leather gloves, with chicks",
         "music": "Mellow arrangement with a gentle bass line.",
     },
     {
@@ -126,7 +126,7 @@ SHOTS = [
             "Factory floor. Boxes move along a conveyor past a furnace. A worker in a hard hat uses a "
             "pneumatic tool, and a blue 5/16 inch hose carries compressed air from an overhead pipe rack."
         ),
-        "characters": "Factory worker in a hard hat and hi-vis vest",
+        "characters": "Factory worker in a hard hat, hi-vis vest and gloves",
         "music": "Driving rhythm with a rising filter.",
     },
     {

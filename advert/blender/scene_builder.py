@@ -52,9 +52,10 @@ MATERIAL_DEFS = {
     "dark_steel": dict(color=(0.08, 0.08, 0.09), rough=0.4, metal=0.6),
     "wood": dict(color=(0.42, 0.26, 0.13), rough=0.6),
     "wood_dark": dict(color=(0.2, 0.12, 0.07), rough=0.7),
-    "skin_light": dict(color=(0.92, 0.73, 0.6), rough=0.6),
-    "skin_mid": dict(color=(0.72, 0.5, 0.36), rough=0.6),
-    "skin_deep": dict(color=(0.45, 0.28, 0.19), rough=0.6),
+    "skin_light": dict(color=(0.42, 0.27, 0.19), rough=0.5),
+    "skin_mid": dict(color=(0.3, 0.19, 0.13), rough=0.5),
+    "skin_deep": dict(color=(0.2, 0.125, 0.085), rough=0.5),
+    "hair_coily": dict(color=(0.02, 0.014, 0.011), rough=0.85),
     "navy": dict(color=(0.08, 0.1, 0.22), rough=0.8),
     "cap": dict(color=(0.2, 0.3, 0.5), rough=0.7),
     "black": dict(color=(0.02, 0.02, 0.02), rough=0.6),
@@ -123,6 +124,11 @@ def M(name):
     _set_input(bsdf, "Base Color", (*d["color"], 1.0))
     _set_input(bsdf, "Roughness", d.get("rough", 0.5))
     _set_input(bsdf, "Metallic", d.get("metal", 0.0))
+    if name.startswith("skin"):
+        # Light scattering under the skin softens the CG look.
+        _set_input(bsdf, "Subsurface Weight", 0.06)
+        _set_input(bsdf, "Subsurface Radius", (0.8, 0.35, 0.2))
+        _set_input(bsdf, "Specular IOR Level", 0.4)
     if "emit" in d:
         _set_input(bsdf, "Emission Color", (*d["emit"], 1.0))
         _set_input(bsdf, "Emission Strength", d.get("emit_strength", 1.0))
@@ -401,7 +407,7 @@ class Human:
     """Stylised person built from primitives, with shoulder/elbow/hip/knee pivots."""
 
     def __init__(self, b, name, loc, yaw, skin, top, bottom, shoe=None, hat=None, hat_style=None,
-                 apron=None, vest=None, visor=None):
+                 apron=None, vest=None, visor=None, gloves=None, hair=True):
         self.b = b
         self.loc = Vector(loc)
         self.yaw = yaw
@@ -421,6 +427,8 @@ class Human:
             b.obj(name + "_vest", G.box(0.47, 0.28, 0.5), vest, loc=(0, 0, 1.3), parent=root)
         if visor is not None:
             b.obj(name + "_visor", G.box(0.2, 0.03, 0.09), visor, loc=(0, -0.14, 1.73), parent=root)
+        if hair and hat is None:
+            self._coily_hair(name)
         self._hat(name, hat, hat_style)
 
         for side, sx in SIDE.items():
@@ -428,8 +436,8 @@ class Human:
             b.obj(f"{name}_ua_{side}", G.cylinder(0.065, UPPER, 10, z0=-UPPER), top, parent=sh, smooth=True)
             el = self._pivot(f"el_{side}", (0, 0, -UPPER), sh, name)
             b.obj(f"{name}_fa_{side}", G.cylinder(0.058, FORE, 10, z0=-FORE), top, parent=el, smooth=True)
-            b.obj(f"{name}_hand_{side}", G.sphere(0.06, 10, 6), skin, loc=(0, 0, -FORE - 0.02),
-                  parent=el, smooth=True)
+            b.obj(f"{name}_hand_{side}", G.sphere(0.065 if gloves else 0.06, 10, 6), gloves or skin,
+                  loc=(0, 0, -FORE - 0.02), parent=el, smooth=True)
             hp = self._pivot(f"hp_{side}", (sx * 0.12, 0, 0.95), root, name)
             b.obj(f"{name}_th_{side}", G.cylinder(0.085, 0.46, 10, z0=-0.46), bottom, parent=hp, smooth=True)
             kn = self._pivot(f"kn_{side}", (0, 0, -0.46), hp, name)
@@ -439,6 +447,18 @@ class Human:
         self.inv = Matrix.Translation(self.loc) @ Matrix.Rotation(yaw, 4, "Z")
         self.inv.invert()
         self.to_world_m = self.inv.inverted()
+
+    def _coily_hair(self, name):
+        """Short, tightly curled hair: a cluster of small spheres over the crown of the head."""
+        n = 16
+        for i in range(n):
+            phi = 0.25 + 0.85 * math.sqrt((i + 0.5) / n)        # polar angle from the crown
+            a = i * 2.39996                                       # golden angle around the head
+            r = 0.125
+            pos = (r * math.sin(phi) * math.cos(a), r * math.sin(phi) * math.sin(a),
+                   1.72 + r * math.cos(phi))
+            self.b.obj(f"{name}_curl{i}", G.sphere(0.047, 8, 5), M("hair_coily"), loc=pos,
+                       parent=self.root, smooth=True)
 
     def _pivot(self, key_name, pos, parent, prefix):
         p = self.b.obj(f"{prefix}_{key_name}", None, loc=pos, parent=parent)
@@ -679,69 +699,72 @@ def stage_welding(b, shot):
     b.floor(M("concrete"))
     b.obj("BackWall", G.box(18, 0.3, 7), M("wall_dark"), loc=(0, 3.4, 3.5))
     b.obj("HoseReel", G.torus(0.3, 0.03, 24, 8), M("hose_orange"), loc=(-2.4, 3.2, 1.6), rot=(PI / 2, 0, 0))
-    b.obj("BenchTop", G.box(2.8, 1.0, 0.08), M("steel"), loc=(0, 0.8, 0.92), bevel=0.01)
+    # Workbench in front of the welder; he stands behind it, facing the camera
+    b.obj("BenchTop", G.box(2.8, 0.5, 0.08), M("steel"), loc=(0, 0.0, 0.92), bevel=0.01)
     for x in (-1.3, 1.3):
-        for y in (0.35, 1.25):
+        for y in (-0.2, 0.2):
             b.obj("BenchLeg", G.box(0.08, 0.08, 0.9), M("dark_steel"), loc=(x, y, 0.45))
-    plate = b.obj("SteelPlate", G.box(1.4, 0.6, 0.03), M("steel"), loc=(0.0, 0.8, 0.98), bevel=0.004)
+    plate = b.obj("SteelPlate", G.box(1.4, 0.4, 0.03), M("steel"), loc=(0.0, 0.0, 0.98), bevel=0.004)
 
-    valve = gas_cylinder(b, "CylOrange", (-2.3, -0.7, 0.2), M("cyl_grey"), M("band_white"))
-    trolley(b, "Trolley", (-2.3, -0.7, 0.0))
+    valve = gas_cylinder(b, "CylOrange", (-2.3, -0.9, 0.2), M("cyl_grey"), M("band_white"))
+    trolley(b, "Trolley", (-2.3, -0.9, 0.0))
 
-    welder = Human(b, "Welder", (0.0, -0.1, 0.0), PI, skin=M("skin_mid"), top=M("leather"),
-                   bottom=M("navy"), shoe=M("black"), hat=M("black"), hat_style="helmet", visor=M("visor"))
+    welder = Human(b, "Welder", (0.0, 0.42, 0.0), 0.0, skin=M("skin_mid"), top=M("leather"),
+                   bottom=M("leather"), shoe=M("black"), hat=M("black"), hat_style="helmet", visor=M("visor"),
+                   apron=M("leather"), gloves=M("leather"))
     welder.breathe(f0, f1)
     welder.rest(f0)
-    hand = welder.reach(f0, "r", (0.25, 0.25, 1.15))
-    welder.reach(f0, "l", (-0.1, 0.25, 1.1))
-    tip = Vector((0.2, 0.8, 1.04))
+    hand = welder.reach(f0, "r", (0.25, 0.05, 1.1))
+    welder.reach(f0, "l", (-0.1, 0.05, 1.1))
+    tip = Vector((0.2, 0.0, 1.03))
     torch(b, "CuttingTorch", tuple(hand), tuple(tip))
-    hose(b, "HoseOrange", [valve, (-1.2, -0.9, 0.25), (-0.3, -0.5, 0.35), tuple(hand)],
+    hose(b, "HoseOrange", [valve, (-1.2, -0.7, 0.35), (-0.3, -0.4, 0.55), tuple(hand)],
          M("hose_orange"), 0.03, reveal=(f0, f0 + 20))
 
-    sparks(b, M("spark"), lambda fr: (0.2, 0.8, 1.05), f0, f1, 60, random.Random(11), spread=1.3, lift=1.4)
-    b.light("CutGlow", "POINT", (0.2, 0.2, 1.4), (1.0, 0.6, 0.25), 60.0, size=0.6)
+    sparks(b, M("spark"), lambda fr: (0.2, 0.0, 1.05), f0, f1, 60, random.Random(11), spread=1.3, lift=1.4)
+    b.light("CutGlow", "POINT", (0.2, -0.1, 1.3), (1.0, 0.6, 0.25), 60.0, size=0.6)
     b.light("BenchFill", "AREA", (0.0, -2.0, 3.0), (1.0, 0.9, 0.8), 350.0, size=3.0, target=(0, 0.5, 0.8))
     b.overlay(shot, title_size=0.13)
 
 
 def stage_oxyacetylene(b, shot):
     f0, f1 = b.f0, b.f1
-    b.camera(start=(-3.4, -4.2, 1.8), end=(-2.9, -3.6, 1.8), target=(0.1, 0.5, 0.9), lens=40)
+    b.camera(start=(-3.4, -4.2, 1.8), end=(-2.9, -3.6, 1.8), target=(0.1, 0.1, 1.0), lens=40)
     b.world((0.04, 0.035, 0.03))
     b.floor(M("concrete"))
     b.obj("BackWall", G.box(18, 0.3, 7), M("wall_light"), loc=(0, 3.4, 3.5))
     pipe_geom = G.cylinder(0.14, 2.8, 20)
-    b.obj("SeamPipe", pipe_geom, M("pipe_silver"), loc=(-1.4, 0.6, 0.98), rot=(0, PI / 2, 0), smooth=True)
+    b.obj("SeamPipe", pipe_geom, M("pipe_silver"), loc=(0.0, 0.0, 1.05), rot=(0, PI / 2, 0), smooth=True)
     for x in (-1.0, 1.0):
-        b.obj("PipeStand", G.box(0.2, 0.6, 0.9), M("dark_steel"), loc=(x, 0.6, 0.45))
+        b.obj("PipeStand", G.box(0.2, 0.4, 0.9), M("dark_steel"), loc=(x, 0.0, 0.45))
     seam = b.obj("WeldBead", G.box(1.8, 0.05, 0.03, origin="left"), M("glow_orange"),
-                 loc=(-0.9, 0.6, 1.11), scale=(0.01, 1, 1))
+                 loc=(-0.9, 0.0, 1.2), scale=(0.01, 1, 1))
     key(seam, f0 + 6, scale=(0.01, 1, 1))
     key(seam, f1 - 20, scale=(1.0, 1, 1))
 
-    red = gas_cylinder(b, "CylRed", (-1.95, 0.95, 0.2), M("cyl_red"), M("band_white"))
-    blue = gas_cylinder(b, "CylBlue", (-1.5, 0.95, 0.2), M("cyl_blue"), M("band_white"))
-    trolley(b, "CartA", (-1.72, 0.95, 0.0), width=0.9)
+    red = gas_cylinder(b, "CylRed", (-1.95, -0.9, 0.2), M("cyl_red"), M("band_white"))
+    blue = gas_cylinder(b, "CylBlue", (-1.5, -0.9, 0.2), M("cyl_blue"), M("band_white"))
+    trolley(b, "CartA", (-1.72, -0.9, 0.0), width=0.9)
 
-    welder = Human(b, "OxyWelder", (0.1, -0.5, 0.0), PI, skin=M("skin_deep"), top=M("leather"),
-                   bottom=M("leather"), shoe=M("black"), hat=M("black"), hat_style="helmet", visor=M("visor"))
+    welder = Human(b, "OxyWelder", (0.1, 0.42, 0.0), 0.0, skin=M("skin_deep"), top=M("leather"),
+                   bottom=M("leather"), shoe=M("black"), hat=M("black"), hat_style="helmet", visor=M("visor"),
+                   apron=M("leather"), gloves=M("leather"))
     welder.breathe(f0, f1)
     welder.rest(f0)
-    hand = welder.reach(f0, "r", (0.25, 0.1, 1.15))
-    welder.reach(f0, "l", (-0.05, 0.25, 1.1))
-    tip = Vector((0.25, 0.6, 1.1))
+    hand = welder.reach(f0, "r", (0.25, 0.05, 1.22))
+    welder.reach(f0, "l", (-0.05, 0.05, 1.22))
+    tip = Vector((0.25, 0.0, 1.24))
     torch(b, "OxyTorch", tuple(hand), tuple(tip))
-    oxy_flame = flame(b, "OxyFlame", tuple(tip), (0.25, 0.42, 1.12), M("glow_blue"), radius=0.03)
+    oxy_flame = flame(b, "OxyFlame", tuple(tip), (0.25, -0.1, 1.22), M("glow_blue"), radius=0.03)
     flicker(oxy_flame, f0, f1, (1, 1, 1), 0.15, random.Random(3))
-    b.light("FlameGlow", "POINT", (0.3, 0.2, 1.3), (0.45, 0.7, 1.0), 80.0, size=0.5)
+    b.light("FlameGlow", "POINT", (0.3, -0.1, 1.3), (0.45, 0.7, 1.0), 80.0, size=0.5)
 
     # Two hoses: red (fuel) from the acetylene valve, blue (oxygen) from the oxygen valve
-    hose(b, "HoseRed", [red, (-1.2, 0.5, 0.25), (-0.4, 0.0, 0.4), tuple(hand)], M("hose_red"), 0.025,
+    hose(b, "HoseRed", [red, (-1.2, -0.6, 0.25), (-0.4, -0.2, 0.5), tuple(hand)], M("hose_red"), 0.025,
          reveal=(f0, f0 + 20))
-    hose(b, "HoseBlue", [blue, (-1.1, 0.45, 0.25), (-0.3, -0.05, 0.4), (0.05, -0.1, 1.0), tuple(hand)],
+    hose(b, "HoseBlue", [blue, (-1.1, -0.6, 0.25), (-0.3, -0.2, 0.45), (0.05, -0.05, 0.95), tuple(hand)],
          M("hose_blue"), 0.025, reveal=(f0 + 4, f0 + 24))
-    sparks(b, M("spark"), lambda fr: (0.25, 0.6, 1.1), f0, f1, 20, random.Random(5), spread=0.7, lift=0.8)
+    sparks(b, M("spark"), lambda fr: (0.25, 0.0, 1.22), f0, f1, 20, random.Random(5), spread=0.7, lift=0.8)
     b.light("BenchFill", "AREA", (0.0, -2.0, 3.0), (1.0, 0.92, 0.85), 300.0, size=3.0, target=(0, 0.5, 0.8))
     b.overlay(shot, title_size=0.13)
 
@@ -754,7 +777,7 @@ def stage_domestic(b, shot):
     b.obj("KitchenWall", G.box(12, 0.3, 4.5), M("tile"), loc=(0, 2.6, 2.25))
     b.obj("Counter", G.box(3.4, 0.75, 0.9), M("cabinet"), loc=(0, 1.55, 0.45), bevel=0.01)
     b.obj("CounterTop", G.box(3.45, 0.8, 0.05), M("counter"), loc=(0, 1.55, 0.92))
-    b.obj("UpperCabinet", G.box(3.4, 0.4, 0.8), M("cabinet"), loc=(0, 2.2, 1.9), bevel=0.01)
+    b.obj("UpperCabinet", G.box(1.4, 0.4, 0.8), M("cabinet"), loc=(-1.2, 2.2, 1.9), bevel=0.01)
     stove_top = 1.065
     b.obj("Stove", G.box(0.9, 0.6, 0.12), M("stainless"), loc=(0, 1.55, 1.005), bevel=0.01)
     burners = [(-0.2, 1.35), (0.2, 1.35), (-0.2, 1.75), (0.2, 1.75)]
@@ -774,12 +797,12 @@ def stage_domestic(b, shot):
     hose(b, "HoseKitchen", [valve, (-1.85, 1.75, 1.0), (-1.1, 1.7, 1.0), inlet],
          M("hose_orange"), 0.03, reveal=(f0, f0 + 24))
 
-    cook = Human(b, "Cook", (1.05, 0.25, 0.0), PI, skin=M("skin_light"), top=M("grey_shirt"),
-                 bottom=M("navy"), apron=M("apron_red"), hat=M("cap"), hat_style="cap")
+    cook = Human(b, "Cook", (1.0, 2.25, 0.0), 0.0, skin=M("skin_light"), top=M("grey_shirt"),
+                 bottom=M("navy"), apron=M("apron_red"))
     cook.breathe(f0, f1)
     cook.rest(f0)
-    cook.reach(f0, "r", (0.9, 1.5, 1.05))
-    cook.reach(f0, "l", (1.2, 1.5, 1.0))
+    cook.reach(f0, "r", (0.9, 1.95, 1.05))
+    cook.reach(f0, "l", (1.2, 1.95, 1.0))
     b.light("KitchenLight", "AREA", (0.0, -0.5, 3.0), (1.0, 0.92, 0.8), 500.0, size=3.0, target=(0, 1.2, 0.8))
     b.light("StoveGlow", "POINT", (-0.2, 1.4, 1.2), (0.45, 0.7, 1.0), 40.0, size=0.6)
     b.overlay(shot, title_size=0.13)
@@ -812,12 +835,17 @@ def stage_commercial(b, shot):
     hose(b, "HoseRange", [wall_outlet, (-2.2, 1.2, 0.12), (-1.8, 1.25, 0.12), (-1.62, 1.9, 0.3)],
          M("hose_orange"), 0.03, reveal=(f0, f0 + 24))
 
-    chef = Human(b, "Chef", (0.6, 0.4, 0.0), PI, skin=M("skin_light"), top=M("chef_white"),
+    # Pass counter between the chef and the camera
+    b.obj("PassTop", G.box(2.0, 0.6, 0.06), M("steel"), loc=(0.6, -0.15, 1.0), bevel=0.01)
+    for x in (-0.3, 1.5):
+        for y in (-0.4, 0.1):
+            b.obj("PassLeg", G.box(0.06, 0.06, 0.95), M("dark_steel"), loc=(x, y, 0.47))
+    chef = Human(b, "Chef", (0.6, 0.3, 0.0), 0.0, skin=M("skin_light"), top=M("chef_white"),
                  bottom=M("navy"), apron=M("black"), hat=M("chef_white"), hat_style="toque")
     chef.breathe(f0, f1)
     chef.rest(f0)
-    chef.reach(f0, "r", (0.3, 1.4, 1.0))
-    chef.reach(f0, "l", (0.9, 1.5, 1.05))
+    chef.reach(f0, "r", (0.3, -0.1, 1.07))
+    chef.reach(f0, "l", (0.9, -0.1, 1.07))
     b.light("PassLight", "AREA", (0.0, -1.0, 3.2), (1.0, 0.95, 0.85), 450.0, size=3.0, target=(0, 1.5, 0.9))
     b.overlay(shot, title_size=0.13)
 
@@ -852,18 +880,18 @@ def stage_outdoor(b, shot):
     b.obj("Generator", G.box(0.7, 0.45, 0.5), M("dark_steel"), loc=(2.6, -0.4, 0.25), bevel=0.02)
     b.obj("GenHandle", G.box(0.5, 0.04, 0.04), M("black"), loc=(2.6, -0.65, 0.55))
 
-    camper_a = Human(b, "CamperA", (0.9, -0.4, 0.0), -PI / 2, skin=M("skin_mid"), top=M("hi_vis"),
-                     bottom=M("navy"), hat=M("cap"), hat_style="cap")
+    camper_a = Human(b, "CamperA", (-0.6, -0.2, 0.0), 0.0, skin=M("skin_mid"), top=M("hi_vis"),
+                     bottom=M("navy"))
     camper_a.breathe(f0, f1)
     camper_a.rest(f0)
-    camper_a.reach(f0, "r", (0.45, 0.4, 1.0))
-    camper_a.reach(f0, "l", (0.5, 0.2, 1.0))
-    camper_b = Human(b, "CamperB", (1.9, 0.9, 0.0), -PI / 2 - 0.4, skin=M("skin_deep"), top=M("overalls"),
+    camper_a.reach(f0, "r", (-0.3, -0.55, 1.15))
+    camper_a.reach(f0, "l", (-0.75, -0.55, 1.1))
+    camper_b = Human(b, "CamperB", (1.5, -0.2, 0.0), 0.0, skin=M("skin_deep"), top=M("overalls"),
                      bottom=M("navy"), hat=M("straw"), hat_style="straw")
     camper_b.breathe(f0, f1)
     camper_b.rest(f0)
-    camper_b.reach(f0, "r", (1.7, 0.7, 1.1))
-    camper_b.reach(f0, "l", (1.5, 0.6, 1.0))
+    camper_b.reach(f0, "r", (1.2, -0.55, 1.1))
+    camper_b.reach(f0, "l", (1.5, -0.55, 1.05))
 
     b.light("SunsetFill", "AREA", (-3.0, -3.0, 4.0), (1.0, 0.8, 0.6), 400.0, size=5.0, target=(0, 1, 1))
     b.overlay(shot, title_size=0.13)
@@ -910,12 +938,12 @@ def stage_agriculture(b, shot):
     dfl = flame(b, "DryerFlame", (3.6, 2.2, 0.5), (3.6, 2.2, 0.1), M("glow_orange"), radius=0.2)
     flicker(dfl, f0, f1, (1, 1, 1), 0.2, random.Random(71))
 
-    farmer = Human(b, "Farmer", (1.5, -1.0, 0.0), -2.6, skin=M("skin_deep"), top=M("overalls"),
-                   bottom=M("overalls"), hat=M("straw"), hat_style="straw")
+    farmer = Human(b, "Farmer", (1.2, -0.6, 0.0), 0.0, skin=M("skin_deep"), top=M("overalls"),
+                   bottom=M("overalls"), hat=M("straw"), hat_style="straw", gloves=M("leather"))
     farmer.breathe(f0, f1)
     farmer.rest(f0)
-    farmer.reach(f0, "r", (1.0, -0.6, 1.1))
-    farmer.reach(f0, "l", (1.3, -0.5, 1.15))
+    farmer.reach(f0, "r", (0.95, -0.5, 1.1))
+    farmer.reach(f0, "l", (1.35, -0.5, 1.1))
     b.light("BarnSun", "AREA", (0.0, -2.0, 3.6), (1.0, 0.85, 0.65), 380.0, size=4.0, target=(0, 1, 0.8))
     b.overlay(shot, title_size=0.13)
 
@@ -928,7 +956,7 @@ def stage_manufacturing(b, shot):
     b.obj("FactoryWall", G.box(16, 0.3, 6), M("wall_dark"), loc=(0, 3.6, 3.0))
     for x in (-3.0, 0.0, 3.0):
         b.obj("RoofBeam", G.box(0.25, 10, 0.25), M("dark_steel"), loc=(x, 0.5, 4.2))
-    b.obj("Conveyor", G.box(6.0, 0.7, 0.1), M("conveyor"), loc=(0, 0.5, 0.92), bevel=0.01)
+    b.obj("Conveyor", G.box(6.0, 0.4, 0.1), M("conveyor"), loc=(0, 0.5, 0.92), bevel=0.01)
     for x in (-2.8, 2.8):
         for y in (0.2, 0.8):
             b.obj("ConvLeg", G.box(0.1, 0.1, 0.9), M("steel"), loc=(x, y, 0.45))
@@ -948,13 +976,14 @@ def stage_manufacturing(b, shot):
     b.obj("AirDrop", G.cylinder(0.04, 1.2, 12), M("pipe_silver"), loc=(-0.9, 2.4, 1.4), smooth=True)
     outlet = (-0.9, 2.4, 1.4)
 
-    worker = Human(b, "Worker", (0.6, -0.1, 0.0), PI, skin=M("skin_light"), top=M("grey_shirt"),
-                   bottom=M("navy"), hat=M("hardhat"), hat_style="hardhat", vest=M("hi_vis"))
+    worker = Human(b, "Worker", (0.6, 0.88, 0.0), 0.0, skin=M("skin_light"), top=M("grey_shirt"),
+                   bottom=M("navy"), hat=M("hardhat"), hat_style="hardhat", vest=M("hi_vis"),
+                   gloves=M("leather"))
     worker.breathe(f0, f1)
     worker.rest(f0)
-    hand = worker.reach(f0, "r", (0.4, 0.3, 1.1))
-    worker.reach(f0, "l", (0.8, 0.3, 1.1))
-    tool_tip = hand + (Vector((0.4, 0.8, 1.1)) - hand).normalized() * 0.4
+    hand = worker.reach(f0, "r", (0.4, 0.5, 1.04))
+    worker.reach(f0, "l", (0.8, 0.5, 1.04))
+    tool_tip = hand + (Vector((0.4, 0.3, 1.0)) - hand).normalized() * 0.4
     torch(b, "AirTool", tuple(hand), tuple(tool_tip), body_mat=M("steel"))
     hose(b, "HoseAir", [outlet, (-0.7, 1.5, 1.6), (-0.1, 0.5, 1.7), tuple(hand)], M("hose_blue"), 0.025,
          reveal=(f0, f0 + 24))
