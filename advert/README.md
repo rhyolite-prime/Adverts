@@ -8,6 +8,7 @@ A 45-second animated advert for RhyolitePrime Industrial PVC Gas Hoses, built in
 - `blender/scene_builder.py`: the Blender scene: characters, props, hoses, flames, sparks, cameras, and the on-screen overlay.
 - `blender/rig_characters.py`: the characters. Each one is appended fresh from `rigs/Body Mechanics Rigs.blend` (Jack or Jill), posed with the FK controls by a small solver, and given per-part clothing and skin materials.
 - `blender/geometry.py`: small mesh generators (no Blender operators needed).
+- `images/all-products.jpg`: the product photo shown above the wordmark in the intro. It is packed into the `.blend`.
 - `rigs/Body Mechanics Rigs.blend`: the supplied Rigify file with the Jack and Jill models and rigs.
 - `blender/music.py`: procedural background music, 96 BPM, 45 s, stdlib only.
 
@@ -16,6 +17,7 @@ Each application gets its own 5-second stage. An intro and an outro bookend the 
 ## Look and feel
 
 - Colours follow the RhyolitePrime palette: primary `#80004d` for the intro title, the wordmark and the brand; accent `#cc6699` for stage labels; light `#f8f9fa` for body text; dark `#212529` for the lower-third band; success `#4bb543` for the progress bar. The hoses keep their product colours (3/8 inch orange, 5/16 inch red and blue).
+- The intro shows the product photo (`images/all-products.jpg`) in a primary-coloured frame above the RhyolitePrime wordmark.
 - All characters are African, with dark skin tones from the palette-led skin set (`skin_warm`, `skin_mid`, `skin_deep`). They face the camera.
 - Every application stage ends with the character giving a thumbs-up. Then a smile and a green check mark (success `#4bb543`) appear, to show satisfaction and trust. The check mark is a flat mesh on the chest, with no prop in the hand.
 - The welder and oxy welder wear visor helmets, leather jackets, aprons and gloves. The home cook wears an apron, and the chef wears a white jacket, toque and apron. The farmer wears a straw hat, overalls and gloves. The factory worker wears a hard hat and a hi-vis vest.
