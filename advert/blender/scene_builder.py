@@ -91,6 +91,8 @@ MATERIAL_DEFS = {
     "steam": dict(color=(0.9, 0.9, 0.92), rough=1.0, emit=(0.9, 0.9, 0.95), emit_strength=0.25),
     "visor": dict(color=(0.02, 0.05, 0.12), rough=0.05, metal=0.5, emit=(0.2, 0.5, 1.0), emit_strength=0.6),
     "wordmark": dict(color=(1.0, 0.42, 0.08), rough=0.2, metal=1.0),
+    # Outro on a near-black stage: a metal would reflect the dark world, so use an emissive, non-metal copy.
+    "wordmark_outro": dict(color=(1.0, 0.42, 0.08), rough=0.35, metal=0.0, emit=(1.0, 0.42, 0.08), emit_strength=1.4),
     "glow_orange": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=(1.0, 0.42, 0.06), emit_strength=22.0),
     "glow_blue": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=(0.3, 0.62, 1.0), emit_strength=30.0),
     "glow_red": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=(1.0, 0.15, 0.05), emit_strength=18.0),
@@ -978,7 +980,7 @@ def stage_outro(b, shot):
     cu.body = "RhyolitePrime"
     cu.align_x = "CENTER"
     cu.align_y = "CENTER"
-    cu.materials.append(M("wordmark"))
+    cu.materials.append(M("wordmark_outro"))
     cu.size = 0.35
     wm = bpy.data.objects.new("OutroWordmark", cu)
     wm.rotation_euler = (PI / 2, 0, 0)
