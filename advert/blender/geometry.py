@@ -21,7 +21,7 @@ def box(sx, sy, sz, origin="center"):
     return v, f
 
 
-def cylinder(r, h, segments=16, z0=0.0, r_top=None, caps=True):
+def cylinder(r, h, segments=28, z0=0.0, r_top=None, caps=True):
     """Cylinder (or truncated cone) from z0 to z0+h. r_top defaults to r."""
     r_top = r if r_top is None else r_top
     v, f = [], []
@@ -47,7 +47,7 @@ def cone(r, h, segments=16, z0=0.0):
     return cylinder(r, h, segments, z0, r_top=0.0, caps=True)
 
 
-def sphere(r, segments=16, rings=10, center=(0.0, 0.0, 0.0), sx=1.0, sy=1.0, sz=1.0):
+def sphere(r, segments=28, rings=18, center=(0.0, 0.0, 0.0), sx=1.0, sy=1.0, sz=1.0):
     v = []
     f = []
     cx, cy, cz = center

@@ -32,6 +32,25 @@ FRAMES = int(round(S.SHOT_SECONDS * S.FPS))  # 120
 OVERLAY_DEPTH = 3.0          # distance of the overlay plane in front of the camera
 SENSOR_HALF = 18.0           # 36 mm sensor, half width, for 16:9 frames
 PI = math.pi
+
+PALETTE = {"primary": "#80004d", "accent": "#cc6699", "light": "#f8f9fa", "dark": "#212529", "success": "#4bb543"}
+
+
+def _srgb_to_linear(c):
+    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+
+def hex_rgb(h):
+    """'#rrggbb' (sRGB) to a linear RGB tuple for Blender."""
+    h = h.lstrip("#")
+    return tuple(_srgb_to_linear(int(h[i:i + 2], 16) / 255.0) for i in (0, 2, 4))
+
+
+PRIMARY = hex_rgb(PALETTE["primary"])
+ACCENT = hex_rgb(PALETTE["accent"])
+LIGHT = hex_rgb(PALETTE["light"])
+DARK = hex_rgb(PALETTE["dark"])
+SUCCESS = hex_rgb(PALETTE["success"])
 SUBJECT_DROP = 0.22          # metres the camera aim is lowered for application stages
 
 
@@ -45,28 +64,28 @@ def stage_frames(index):
 # ---------------------------------------------------------------------------
 
 MATERIAL_DEFS = {
-    "concrete": dict(color=(0.24, 0.24, 0.25), rough=0.9),
-    "wall_dark": dict(color=(0.09, 0.11, 0.14), rough=0.85),
-    "wall_light": dict(color=(0.55, 0.55, 0.52), rough=0.8),
-    "steel": dict(color=(0.5, 0.5, 0.54), rough=0.3, metal=1.0),
+    "concrete": dict(color=(0.24, 0.24, 0.25), rough=0.9, bump=0.25, var=(0.3, 0.3, 0.31), tex_scale=25),
+    "wall_dark": dict(color=(0.09, 0.11, 0.14), rough=0.85, bump=0.06, tex_scale=15),
+    "wall_light": dict(color=(0.55, 0.55, 0.52), rough=0.8, bump=0.06, tex_scale=15),
+    "steel": dict(color=(0.5, 0.5, 0.54), rough=0.3, metal=1.0, bump=0.03, tex_scale=60),
     "dark_steel": dict(color=(0.08, 0.08, 0.09), rough=0.4, metal=0.6),
-    "wood": dict(color=(0.42, 0.26, 0.13), rough=0.6),
-    "wood_dark": dict(color=(0.2, 0.12, 0.07), rough=0.7),
-    "skin_light": dict(color=(0.42, 0.27, 0.19), rough=0.5),
-    "skin_mid": dict(color=(0.3, 0.19, 0.13), rough=0.5),
-    "skin_deep": dict(color=(0.2, 0.125, 0.085), rough=0.5),
-    "hair_coily": dict(color=(0.02, 0.014, 0.011), rough=0.85),
-    "navy": dict(color=(0.08, 0.1, 0.22), rough=0.8),
-    "cap": dict(color=(0.2, 0.3, 0.5), rough=0.7),
+    "wood": dict(color=(0.42, 0.26, 0.13), rough=0.6, bump=0.12, var=(0.55, 0.36, 0.2), tex_scale=12),
+    "wood_dark": dict(color=(0.2, 0.12, 0.07), rough=0.7, bump=0.1, tex_scale=12),
+    "skin_light": dict(color=(0.42, 0.27, 0.19), rough=0.5, bump=0.04, tex_scale=150),
+    "skin_mid": dict(color=(0.3, 0.19, 0.13), rough=0.5, bump=0.04, tex_scale=150),
+    "skin_deep": dict(color=(0.2, 0.125, 0.085), rough=0.5, bump=0.04, tex_scale=150),
+    "hair_coily": dict(color=(0.02, 0.014, 0.011), rough=0.85, bump=0.35, tex_scale=90),
+    "navy": dict(color=(0.08, 0.1, 0.22), rough=0.8, bump=0.06, tex_scale=120),
+    "cap": dict(color=(0.2, 0.3, 0.5), rough=0.7, bump=0.06, tex_scale=120),
     "black": dict(color=(0.02, 0.02, 0.02), rough=0.6),
-    "leather": dict(color=(0.32, 0.18, 0.09), rough=0.8),
-    "overalls": dict(color=(0.1, 0.27, 0.55), rough=0.8),
-    "apron_red": dict(color=(0.6, 0.07, 0.07), rough=0.8),
-    "chef_white": dict(color=(0.93, 0.93, 0.92), rough=0.7),
-    "hi_vis": dict(color=(1.0, 0.8, 0.05), rough=0.5, emit=(1.0, 0.7, 0.0), emit_strength=0.3),
+    "leather": dict(color=(0.32, 0.18, 0.09), rough=0.8, bump=0.2, tex_scale=60),
+    "overalls": dict(color=(0.1, 0.27, 0.55), rough=0.8, bump=0.06, tex_scale=120),
+    "apron_red": dict(color=(0.6, 0.07, 0.07), rough=0.8, bump=0.06, tex_scale=120),
+    "chef_white": dict(color=(0.93, 0.93, 0.92), rough=0.7, bump=0.05, tex_scale=120),
+    "hi_vis": dict(color=(1.0, 0.8, 0.05), rough=0.5, emit=(1.0, 0.7, 0.0), emit_strength=0.3, bump=0.05, tex_scale=120),
     "hardhat": dict(color=(1.0, 0.75, 0.05), rough=0.4),
     "straw": dict(color=(0.75, 0.6, 0.3), rough=0.9),
-    "grey_shirt": dict(color=(0.4, 0.42, 0.45), rough=0.8),
+    "grey_shirt": dict(color=(0.4, 0.42, 0.45), rough=0.8, bump=0.06, tex_scale=120),
     "hose_orange": dict(color=(1.0, 0.36, 0.04), rough=0.35),
     "hose_red": dict(color=(0.75, 0.05, 0.04), rough=0.35),
     "hose_blue": dict(color=(0.03, 0.22, 0.8), rough=0.35),
@@ -75,32 +94,34 @@ MATERIAL_DEFS = {
     "cyl_blue": dict(color=(0.04, 0.17, 0.62), rough=0.35, metal=0.4),
     "brass": dict(color=(0.8, 0.6, 0.25), rough=0.3, metal=1.0),
     "band_white": dict(color=(0.95, 0.95, 0.95), rough=0.5),
-    "grass": dict(color=(0.13, 0.36, 0.09), rough=0.95),
-    "bark": dict(color=(0.25, 0.15, 0.08), rough=0.9),
+    "grass": dict(color=(0.13, 0.36, 0.09), rough=0.95, bump=0.3, var=(0.22, 0.45, 0.12), tex_scale=30),
+    "bark": dict(color=(0.25, 0.15, 0.08), rough=0.9, bump=0.4, tex_scale=20),
     "leaf": dict(color=(0.1, 0.3, 0.1), rough=0.9),
-    "tent": dict(color=(0.52, 0.56, 0.32), rough=0.9),
-    "tile": dict(color=(0.9, 0.88, 0.83), rough=0.4),
+    "tent": dict(color=(0.52, 0.56, 0.32), rough=0.9, bump=0.08, tex_scale=40),
+    "tile": dict(color=(0.9, 0.88, 0.83), rough=0.4, bump=0.05, tex_scale=30),
     "cabinet": dict(color=(0.78, 0.72, 0.6), rough=0.5),
-    "counter": dict(color=(0.14, 0.14, 0.15), rough=0.3),
+    "counter": dict(color=(0.14, 0.14, 0.15), rough=0.3, bump=0.04, tex_scale=40),
     "stainless": dict(color=(0.65, 0.66, 0.68), rough=0.22, metal=1.0),
-    "straw_floor": dict(color=(0.55, 0.42, 0.2), rough=0.95),
-    "barn_wood": dict(color=(0.3, 0.18, 0.1), rough=0.8),
+    "straw_floor": dict(color=(0.55, 0.42, 0.2), rough=0.95, bump=0.3, var=(0.72, 0.55, 0.25), tex_scale=25),
+    "barn_wood": dict(color=(0.3, 0.18, 0.1), rough=0.8, bump=0.15, tex_scale=12),
     "chick": dict(color=(1.0, 0.82, 0.2), rough=0.6),
-    "cardboard": dict(color=(0.6, 0.45, 0.28), rough=0.8),
-    "conveyor": dict(color=(0.07, 0.07, 0.08), rough=0.6),
+    "cardboard": dict(color=(0.6, 0.45, 0.28), rough=0.8, bump=0.15, tex_scale=40),
+    "conveyor": dict(color=(0.07, 0.07, 0.08), rough=0.6, bump=0.12, tex_scale=30),
     "pipe_silver": dict(color=(0.7, 0.7, 0.72), rough=0.3, metal=1.0),
     "steam": dict(color=(0.9, 0.9, 0.92), rough=1.0, emit=(0.9, 0.9, 0.95), emit_strength=0.25),
     "visor": dict(color=(0.02, 0.05, 0.12), rough=0.05, metal=0.5, emit=(0.2, 0.5, 1.0), emit_strength=0.6),
-    "wordmark": dict(color=(1.0, 0.42, 0.08), rough=0.2, metal=1.0),
+    "wordmark": dict(color=PRIMARY, rough=0.25, emit=PRIMARY, emit_strength=0.8),
     # Outro on a near-black stage: a metal would reflect the dark world, so use an emissive, non-metal copy.
-    "wordmark_outro": dict(color=(1.0, 0.42, 0.08), rough=0.35, metal=0.0, emit=(1.0, 0.42, 0.08), emit_strength=1.4),
+    "wordmark_outro": dict(color=PRIMARY, rough=0.35, emit=PRIMARY, emit_strength=3.5),
     "glow_orange": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=(1.0, 0.42, 0.06), emit_strength=22.0),
     "glow_blue": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=(0.3, 0.62, 1.0), emit_strength=30.0),
     "glow_red": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=(1.0, 0.15, 0.05), emit_strength=18.0),
     "spark": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=(1.0, 0.7, 0.25), emit_strength=40.0),
-    "text_white": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=(1.0, 1.0, 1.0), emit_strength=1.6),
-    "text_accent": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=(1.0, 0.45, 0.1), emit_strength=2.4),
-    "bar_accent": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=(1.0, 0.45, 0.1), emit_strength=3.0),
+    "text_white": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=LIGHT, emit_strength=1.6),
+    "text_accent": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=ACCENT, emit_strength=2.4),
+    "bar_accent": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=ACCENT, emit_strength=3.0),
+    "brand_primary": dict(color=PRIMARY, rough=0.3, emit=PRIMARY, emit_strength=3.0),
+    "bar_success": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=SUCCESS, emit_strength=3.0),
 }
 
 _MATS = {}
@@ -111,6 +132,35 @@ def _set_input(node, name, value):
         node.inputs[name].default_value = value
     else:
         print(f"[advert] warning: shader input '{name}' not found")
+
+
+def _texture(mat, bsdf, d):
+    """Procedural detail: colour variation (var) and bump from noise (bump). Scale: tex_scale."""
+    if "var" not in d and "bump" not in d:
+        return
+    nt = mat.node_tree
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    scale = d.get("tex_scale", 40.0)
+    if "var" in d:
+        nz = nt.nodes.new("ShaderNodeTexNoise")
+        nz.inputs["Scale"].default_value = scale * 0.5
+        nz.inputs["Detail"].default_value = 6.0
+        nt.links.new(tc.outputs["Generated"], nz.inputs["Vector"])
+        mix = nt.nodes.new("ShaderNodeMixRGB")
+        mix.inputs[1].default_value = (*d["color"], 1.0)
+        mix.inputs[2].default_value = (*d["var"], 1.0)
+        nt.links.new(nz.outputs["Fac"], mix.inputs[0])
+        nt.links.new(mix.outputs["Color"], bsdf.inputs["Base Color"])
+    if "bump" in d:
+        nz2 = nt.nodes.new("ShaderNodeTexNoise")
+        nz2.inputs["Scale"].default_value = scale
+        nz2.inputs["Detail"].default_value = 10.0
+        nt.links.new(tc.outputs["Generated"], nz2.inputs["Vector"])
+        bump = nt.nodes.new("ShaderNodeBump")
+        bump.inputs["Strength"].default_value = d["bump"]
+        bump.inputs["Distance"].default_value = 0.05
+        nt.links.new(nz2.outputs["Fac"], bump.inputs["Height"])
+        nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
 
 
 def M(name):
@@ -132,6 +182,7 @@ def M(name):
     if "emit" in d:
         _set_input(bsdf, "Emission Color", (*d["emit"], 1.0))
         _set_input(bsdf, "Emission Strength", d.get("emit_strength", 1.0))
+    _texture(mat, bsdf, d)
     _MATS[name] = mat
     return mat
 
@@ -146,7 +197,7 @@ def band_material():
     mix = nt.nodes.new("ShaderNodeMixShader")
     transparent = nt.nodes.new("ShaderNodeBsdfTransparent")
     principled = nt.nodes.new("ShaderNodeBsdfPrincipled")
-    _set_input(principled, "Base Color", (0.01, 0.012, 0.02, 1.0))
+    _set_input(principled, "Base Color", (*DARK, 1.0))
     _set_input(principled, "Roughness", 1.0)
     mix.inputs[0].default_value = 0.8  # 80% opaque
     nt.links.new(transparent.outputs[0], mix.inputs[1])
@@ -252,7 +303,7 @@ class Builder:
 
     # --- primitives -------------------------------------------------------
     def obj(self, name, geom=None, mat=None, loc=(0, 0, 0), rot=(0, 0, 0), scale=(1, 1, 1),
-            parent=None, smooth=False, bevel=0.0):
+            parent=None, smooth=False, bevel=0.0, subdiv=0):
         if geom is None:
             o = bpy.data.objects.new(name, None)
             o.empty_display_type = "PLAIN_AXES"
@@ -264,8 +315,12 @@ class Builder:
             if bevel > 0:
                 mod = o.modifiers.new("Bevel", "BEVEL")
                 mod.width = bevel
-                mod.segments = 2
+                mod.segments = 3
                 mod.limit_method = "ANGLE"
+            if subdiv > 0:
+                sd = o.modifiers.new("Subsurf", "SUBSURF")
+                sd.levels = subdiv
+                sd.render_levels = subdiv
         o.location = loc
         o.rotation_euler = rot
         o.scale = scale
@@ -278,9 +333,9 @@ class Builder:
         p0v, p1v = Vector(p0), Vector(p1)
         length = (p1v - p0v).length
         if cone:
-            geom = G.cone(radius, length, 12)
+            geom = G.cone(radius, length, 20)
         else:
-            geom = G.cylinder(radius, length, 12, r_top=radius_top)
+            geom = G.cylinder(radius, length, 20, r_top=radius_top)
         return self.obj(name, geom, mat, loc=tuple(p0v), rot=aim_quat(p1v - p0v), smooth=True)
 
     def light(self, name, kind, loc, color, energy, size=1.0, target=None):
@@ -343,7 +398,7 @@ class Builder:
         o.location = loc
         return self.link(o)
 
-    def overlay(self, shot, stagger=0, title_size=0.13):
+    def overlay(self, shot, stagger=0, title_size=0.13, title_material="text_white"):
         """Lower-third overlay: label, key selling point, spec line, progress bar.
 
         Everything sits on the camera at OVERLAY_DEPTH, so it stays on screen.
@@ -363,7 +418,7 @@ class Builder:
 
         lines = shot["title"].split("\n")
         base = title_size if len(lines) == 1 else min(title_size, 0.33 / (len(lines) * 1.3))
-        title_objs = [self.text(f"OverlayTitle{i}", ln, base, M("text_white"), (0, 0, z))
+        title_objs = [self.text(f"OverlayTitle{i}", ln, base, M(title_material), (0, 0, z))
                       for i, ln in enumerate(lines)]
         bpy.context.view_layer.update()
         depsgraph = bpy.context.evaluated_depsgraph_get()
@@ -388,7 +443,7 @@ class Builder:
         key(spec, f1 - 10, scale=(1.0, 1.0, 1.0))
         key(spec, f1, scale=(0.01, 0.01, 0.01))
 
-        bar = self.obj("OverlayProgress", G.box(1.0, 0.02, 0.001, origin="left"), M("bar_accent"),
+        bar = self.obj("OverlayProgress", G.box(1.0, 0.02, 0.001, origin="left"), M("bar_success"),
                        loc=(-half_w, -0.85, z), parent=self.cam, scale=(0.001, 1, 1))
         key(bar, f0, scale=(0.001, 1, 1))
         key(bar, f1, scale=(2 * half_w, 1, 1))
@@ -411,38 +466,42 @@ class Human:
         self.b = b
         self.loc = Vector(loc)
         self.yaw = yaw
-        root = b.obj(name, None, loc=tuple(loc), rot=(0, 0, yaw))
+        root = self._part(name, None, loc=tuple(loc), rot=(0, 0, yaw))
         self.root = root
         self.j = {}
+        self.thumbs = {}
         shoe = shoe or M("black")
 
-        b.obj(name + "_torso", G.box(0.44, 0.26, 0.62), top, loc=(0, 0, 1.24), parent=root, bevel=0.03)
-        b.obj(name + "_neck", G.cylinder(0.055, 0.2, 10, z0=0.0), skin, loc=(0, 0, 1.5), parent=root,
+        self._part(name + "_torso", G.box(0.44, 0.26, 0.62), top, loc=(0, 0, 1.24), parent=root, bevel=0.03)
+        self._part(name + "_neck", G.cylinder(0.055, 0.2, 18, z0=0.0), skin, loc=(0, 0, 1.5), parent=root,
               smooth=True)
-        b.obj(name + "_head", G.sphere(0.13, 16, 10), skin, loc=(0, 0, 1.72), parent=root, smooth=True)
-        b.obj(name + "_nose", G.sphere(0.022, 8, 5), skin, loc=(0, -0.135, 1.7), parent=root, smooth=True)
+        self._part(name + "_head", G.sphere(0.13, 28, 18), skin, loc=(0, 0, 1.72), parent=root, smooth=True)
+        self._part(name + "_nose", G.sphere(0.022, 12, 8), skin, loc=(0, -0.135, 1.7), parent=root, smooth=True)
         if apron is not None:
-            b.obj(name + "_apron", G.box(0.36, 0.02, 0.5), apron, loc=(0, -0.14, 1.05), parent=root)
+            self._part(name + "_apron", G.box(0.36, 0.02, 0.5), apron, loc=(0, -0.14, 1.05), parent=root)
         if vest is not None:
-            b.obj(name + "_vest", G.box(0.47, 0.28, 0.5), vest, loc=(0, 0, 1.3), parent=root)
+            self._part(name + "_vest", G.box(0.47, 0.28, 0.5), vest, loc=(0, 0, 1.3), parent=root)
         if visor is not None:
-            b.obj(name + "_visor", G.box(0.2, 0.03, 0.09), visor, loc=(0, -0.14, 1.73), parent=root)
+            self._part(name + "_visor", G.box(0.2, 0.03, 0.09), visor, loc=(0, -0.14, 1.73), parent=root)
         if hair and hat is None:
             self._coily_hair(name)
         self._hat(name, hat, hat_style)
 
         for side, sx in SIDE.items():
             sh = self._pivot(f"sh_{side}", (sx * 0.27, 0, 1.5), root, name)
-            b.obj(f"{name}_ua_{side}", G.cylinder(0.065, UPPER, 10, z0=-UPPER), top, parent=sh, smooth=True)
+            self._part(f"{name}_ua_{side}", G.cylinder(0.065, UPPER, 18, z0=-UPPER), top, parent=sh, smooth=True)
             el = self._pivot(f"el_{side}", (0, 0, -UPPER), sh, name)
-            b.obj(f"{name}_fa_{side}", G.cylinder(0.058, FORE, 10, z0=-FORE), top, parent=el, smooth=True)
-            b.obj(f"{name}_hand_{side}", G.sphere(0.065 if gloves else 0.06, 10, 6), gloves or skin,
+            self._part(f"{name}_fa_{side}", G.cylinder(0.058, FORE, 18, z0=-FORE), top, parent=el, smooth=True)
+            self._part(f"{name}_hand_{side}", G.sphere(0.065 if gloves else 0.06, 16, 10), gloves or skin,
                   loc=(0, 0, -FORE - 0.02), parent=el, smooth=True)
+            # thumb: continues the forearm past the fist; hidden until thumbs_up() shows it
+            self.thumbs[side] = self._part(f"{name}_thumb_{side}", G.cylinder(0.02, 0.085, 14, z0=-0.11),
+                                           gloves or skin, loc=(0, 0, -FORE), parent=el, smooth=True)
             hp = self._pivot(f"hp_{side}", (sx * 0.12, 0, 0.95), root, name)
-            b.obj(f"{name}_th_{side}", G.cylinder(0.085, 0.46, 10, z0=-0.46), bottom, parent=hp, smooth=True)
+            self._part(f"{name}_th_{side}", G.cylinder(0.085, 0.46, 18, z0=-0.46), bottom, parent=hp, smooth=True)
             kn = self._pivot(f"kn_{side}", (0, 0, -0.46), hp, name)
-            b.obj(f"{name}_sh_{side}", G.cylinder(0.075, 0.42, 10, z0=-0.42), bottom, parent=kn, smooth=True)
-            b.obj(f"{name}_ft_{side}", G.box(0.12, 0.27, 0.08), shoe, loc=(0, -0.06, -0.46), parent=kn)
+            self._part(f"{name}_sh_{side}", G.cylinder(0.075, 0.42, 18, z0=-0.42), bottom, parent=kn, smooth=True)
+            self._part(f"{name}_ft_{side}", G.box(0.12, 0.27, 0.08), shoe, loc=(0, -0.06, -0.46), parent=kn)
 
         self.inv = Matrix.Translation(self.loc) @ Matrix.Rotation(yaw, 4, "Z")
         self.inv.invert()
@@ -457,30 +516,53 @@ class Human:
             r = 0.125
             pos = (r * math.sin(phi) * math.cos(a), r * math.sin(phi) * math.sin(a),
                    1.72 + r * math.cos(phi))
-            self.b.obj(f"{name}_curl{i}", G.sphere(0.047, 8, 5), M("hair_coily"), loc=pos,
+            self._part(f"{name}_curl{i}", G.sphere(0.047, 12, 8), M("hair_coily"), loc=pos,
                        parent=self.root, smooth=True)
 
+    def _part(self, name, geom=None, mat=None, **kw):
+        """Body part: smooth shading and one level of subdivision for a finer silhouette."""
+        kw.setdefault("subdiv", 1)
+        kw.setdefault("smooth", True)
+        return self.b.obj(name, geom, mat, **kw)
+
+    def thumbs_up(self, f_start, f_end, side="r"):
+        """Raise one arm so the fist sits by the chest with the thumb up; hold until f_end.
+
+        The arm first holds its current pose, so it does not drift during the stage.
+        """
+        j_sh, j_el = self.j[f"sh_{side}"], self.j[f"el_{side}"]
+        key(j_sh, f_start - 14, rotation_euler=tuple(j_sh.rotation_euler))
+        key(j_el, f_start - 14, rotation_euler=tuple(j_el.rotation_euler))
+        # fist in front of the chest, elbow down, so the forearm (and thumb) points up
+        tgt = self.loc + Vector((SIDE[side] * 0.2, -0.21, 1.6))
+        a, e = self._ik(side, tgt)
+        self.pose(f_start, **{f"sh_{side}": (a, 0, 0), f"el_{side}": (e, 0, 0)})
+        self.pose(f_end, **{f"sh_{side}": (a, 0, 0), f"el_{side}": (e, 0, 0)})
+        th = self.thumbs[side]
+        key(th, f_start - 1, scale=(0.001, 0.001, 0.001))
+        key(th, f_start, scale=(1.0, 1.0, 1.0))
+
     def _pivot(self, key_name, pos, parent, prefix):
-        p = self.b.obj(f"{prefix}_{key_name}", None, loc=pos, parent=parent)
+        p = self._part(f"{prefix}_{key_name}", None, loc=pos, parent=parent)
         self.j[key_name] = p
         return p
 
     def _hat(self, name, mat, style):
         b = self.b
         if style == "helmet":
-            b.obj(name + "_helmet", G.sphere(0.155, 16, 10), mat, loc=(0, 0.01, 1.74), parent=self.root, smooth=True)
+            self._part(name + "_helmet", G.sphere(0.155, 28, 18), mat, loc=(0, 0.01, 1.74), parent=self.root, smooth=True)
         elif style == "toque":
-            b.obj(name + "_toque", G.cylinder(0.12, 0.2, 14, z0=1.85), mat, parent=self.root, smooth=True)
-            b.obj(name + "_toque_top", G.sphere(0.14, 12, 8), mat, loc=(0, 0, 2.08), parent=self.root, smooth=True)
+            self._part(name + "_toque", G.cylinder(0.12, 0.2, 14, z0=1.85), mat, parent=self.root, smooth=True)
+            self._part(name + "_toque_top", G.sphere(0.14, 12, 8), mat, loc=(0, 0, 2.08), parent=self.root, smooth=True)
         elif style == "hardhat":
-            b.obj(name + "_hardhat", G.sphere(0.15, 14, 8, sz=0.62), mat, loc=(0, 0, 1.8), parent=self.root,
+            self._part(name + "_hardhat", G.sphere(0.15, 14, 8, sz=0.62), mat, loc=(0, 0, 1.8), parent=self.root,
                   smooth=True)
         elif style == "straw":
-            b.obj(name + "_brim", G.cylinder(0.27, 0.02, 20, z0=1.84), mat, parent=self.root, smooth=True)
-            b.obj(name + "_crown", G.cylinder(0.14, 0.14, 14, z0=1.84), mat, parent=self.root, smooth=True)
+            self._part(name + "_brim", G.cylinder(0.27, 0.02, 20, z0=1.84), mat, parent=self.root, smooth=True)
+            self._part(name + "_crown", G.cylinder(0.14, 0.14, 14, z0=1.84), mat, parent=self.root, smooth=True)
         elif style == "cap":
-            b.obj(name + "_cap", G.sphere(0.14, 14, 8, sz=0.6), mat, loc=(0, 0, 1.8), parent=self.root, smooth=True)
-            b.obj(name + "_peak", G.box(0.14, 0.12, 0.02), mat, loc=(0, -0.16, 1.78), parent=self.root)
+            self._part(name + "_cap", G.sphere(0.14, 14, 8, sz=0.6), mat, loc=(0, 0, 1.8), parent=self.root, smooth=True)
+            self._part(name + "_peak", G.box(0.14, 0.12, 0.02), mat, loc=(0, -0.16, 1.78), parent=self.root)
 
     # --- posing -------------------------------------------------------------
     def pose(self, frame, **joints):
@@ -566,9 +648,9 @@ def hose(b, name, points, mat, radius, reveal=None):
     """Bezier hose through `points` (world coordinates). `reveal` = (f0, f1) to animate it growing."""
     cu = bpy.data.curves.new(name, "CURVE")
     cu.dimensions = "3D"
-    cu.resolution_u = 12
+    cu.resolution_u = 24
     cu.bevel_depth = radius
-    cu.bevel_resolution = 3
+    cu.bevel_resolution = 5
     cu.use_fill_caps = True
     cu.materials.append(mat)
     sp = cu.splines.new("BEZIER")
@@ -690,6 +772,7 @@ def stage_intro(b, shot):
     path = [(-4.8, -0.4, 0.25), (-3.2, -0.3, 0.95), (-1.2, -0.25, 1.02), (1.2, -0.25, 1.02),
             (3.2, -0.3, 0.95), (4.8, -0.4, 0.25)]
     hose(b, "HoseIntro", path, M("hose_orange"), 0.035, reveal=(f0 + 4, f0 + 60))
+    b.overlay(shot, title_size=0.13, title_material="brand_primary")
 
 
 def stage_welding(b, shot):
@@ -722,6 +805,7 @@ def stage_welding(b, shot):
          M("hose_orange"), 0.03, reveal=(f0, f0 + 20))
 
     sparks(b, M("spark"), lambda fr: (0.2, 0.0, 1.05), f0, f1, 60, random.Random(11), spread=1.3, lift=1.4)
+    welder.thumbs_up(b.f1 - 36, b.f1, side="l")
     b.light("CutGlow", "POINT", (0.2, -0.1, 1.3), (1.0, 0.6, 0.25), 60.0, size=0.6)
     b.light("BenchFill", "AREA", (0.0, -2.0, 3.0), (1.0, 0.9, 0.8), 350.0, size=3.0, target=(0, 0.5, 0.8))
     b.overlay(shot, title_size=0.13)
@@ -764,6 +848,7 @@ def stage_oxyacetylene(b, shot):
          reveal=(f0, f0 + 20))
     hose(b, "HoseBlue", [blue, (-1.1, -0.6, 0.25), (-0.3, -0.2, 0.45), (0.05, -0.05, 0.95), tuple(hand)],
          M("hose_blue"), 0.025, reveal=(f0 + 4, f0 + 24))
+    welder.thumbs_up(b.f1 - 36, b.f1, side="l")
     sparks(b, M("spark"), lambda fr: (0.25, 0.0, 1.22), f0, f1, 20, random.Random(5), spread=0.7, lift=0.8)
     b.light("BenchFill", "AREA", (0.0, -2.0, 3.0), (1.0, 0.92, 0.85), 300.0, size=3.0, target=(0, 0.5, 0.8))
     b.overlay(shot, title_size=0.13)
@@ -803,6 +888,7 @@ def stage_domestic(b, shot):
     cook.rest(f0)
     cook.reach(f0, "r", (0.9, 1.95, 1.05))
     cook.reach(f0, "l", (1.2, 1.95, 1.0))
+    cook.thumbs_up(b.f1 - 36, b.f1, side="r")
     b.light("KitchenLight", "AREA", (0.0, -0.5, 3.0), (1.0, 0.92, 0.8), 500.0, size=3.0, target=(0, 1.2, 0.8))
     b.light("StoveGlow", "POINT", (-0.2, 1.4, 1.2), (0.45, 0.7, 1.0), 40.0, size=0.6)
     b.overlay(shot, title_size=0.13)
@@ -846,6 +932,7 @@ def stage_commercial(b, shot):
     chef.rest(f0)
     chef.reach(f0, "r", (0.3, -0.1, 1.07))
     chef.reach(f0, "l", (0.9, -0.1, 1.07))
+    chef.thumbs_up(b.f1 - 36, b.f1, side="r")
     b.light("PassLight", "AREA", (0.0, -1.0, 3.2), (1.0, 0.95, 0.85), 450.0, size=3.0, target=(0, 1.5, 0.9))
     b.overlay(shot, title_size=0.13)
 
@@ -893,6 +980,8 @@ def stage_outdoor(b, shot):
     camper_b.reach(f0, "r", (1.2, -0.55, 1.1))
     camper_b.reach(f0, "l", (1.5, -0.55, 1.05))
 
+    camper_a.thumbs_up(b.f1 - 36, b.f1, side="r")
+    camper_b.thumbs_up(b.f1 - 36, b.f1, side="r")
     b.light("SunsetFill", "AREA", (-3.0, -3.0, 4.0), (1.0, 0.8, 0.6), 400.0, size=5.0, target=(0, 1, 1))
     b.overlay(shot, title_size=0.13)
 
@@ -944,6 +1033,7 @@ def stage_agriculture(b, shot):
     farmer.rest(f0)
     farmer.reach(f0, "r", (0.95, -0.5, 1.1))
     farmer.reach(f0, "l", (1.35, -0.5, 1.1))
+    farmer.thumbs_up(b.f1 - 36, b.f1, side="r")
     b.light("BarnSun", "AREA", (0.0, -2.0, 3.6), (1.0, 0.85, 0.65), 380.0, size=4.0, target=(0, 1, 0.8))
     b.overlay(shot, title_size=0.13)
 
@@ -987,6 +1077,7 @@ def stage_manufacturing(b, shot):
     torch(b, "AirTool", tuple(hand), tuple(tool_tip), body_mat=M("steel"))
     hose(b, "HoseAir", [outlet, (-0.7, 1.5, 1.6), (-0.1, 0.5, 1.7), tuple(hand)], M("hose_blue"), 0.025,
          reveal=(f0, f0 + 24))
+    worker.thumbs_up(b.f1 - 36, b.f1, side="l")
     b.light("LineLight", "AREA", (0.0, -1.5, 3.5), (0.95, 0.95, 1.0), 500.0, size=4.0, target=(0, 0.8, 0.8))
     b.overlay(shot, title_size=0.13)
 

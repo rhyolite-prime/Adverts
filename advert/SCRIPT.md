@@ -10,7 +10,7 @@ Each application gets its own 5 second stage. The intro and outro bookend the se
 
 | Time | Stage | Key selling point (on screen) | Spec line (on screen) |
 |---|---|---|---|
-| 00:00-00:05 | Introducing | High Quality Industrial PVC Gas Hose / from Rhyolite Prime | RhyolitePrime Industrial PVC Gas Hoses |
+| 00:00-00:05 | Introducing | High Quality Industrial PVC Gas Hose / from RhyolitePrime | RhyolitePrime Industrial PVC Gas Hoses |
 | 00:05-00:10 | Welding & Cutting | Consistent performance under pressure | 3/8 inch PVC gas hose \| Orange |
 | 00:10-00:15 | Oxyacetylene Welding | Built for high-pressure industrial work | 5/16 inch PVC gas hose \| Red (fuel) and blue (oxygen) |
 | 00:15-00:20 | Domestic Gas Connections | Reliable, safety-focused connections at home | 3/8 inch PVC gas hose \| Orange |
@@ -22,7 +22,7 @@ Each application gets its own 5 second stage. The intro and outro bookend the se
 
 ## 1. Introducing (00:00-00:05)
 
-**Key selling point on screen:** High Quality Industrial PVC Gas Hose / from Rhyolite Prime
+**Key selling point on screen:** High Quality Industrial PVC Gas Hose / from RhyolitePrime
 
 **Spec line:** RhyolitePrime Industrial PVC Gas Hoses
 
@@ -40,7 +40,7 @@ Each application gets its own 5 second stage. The intro and outro bookend the se
 
 **Visual:** Fabrication workshop. A welder in a dark helmet cuts a steel plate on a workbench with a cutting torch. Sparks spray across the frame. An orange hose runs from a gas cylinder on a trolley to the torch.
 
-**Characters:** Welder in a visor helmet, leather jacket, apron and gloves
+**Characters:** Welder in a visor helmet, leather jacket, apron and gloves. Ends with a thumbs-up.
 
 **Music cue:** Bass and clap drive in; sparks are synced to the hi-hats.
 
@@ -52,7 +52,7 @@ Each application gets its own 5 second stage. The intro and outro bookend the se
 
 **Visual:** Two cylinders on a cart, one red (fuel) and one blue (oxygen). Red and blue 5/16 inch hoses run to a welding torch. The welder lights a bright flame and runs a bead along a pipe seam, and the glow flickers.
 
-**Characters:** Welder in a visor helmet, leather jacket, apron and gloves
+**Characters:** Welder in a visor helmet, leather jacket, apron and gloves. Ends with a thumbs-up.
 
 **Music cue:** Arpeggio lead enters over the progression.
 
@@ -64,7 +64,7 @@ Each application gets its own 5 second stage. The intro and outro bookend the se
 
 **Visual:** Bright home kitchen. A cook in an apron lights a four-burner stove. An orange hose runs from a cylinder behind the cabinet to the stove inlet. Blue burner flames glow under a pot.
 
-**Characters:** Home cook in an apron
+**Characters:** Home cook in an apron. Ends with a thumbs-up.
 
 **Music cue:** Warm, lighter section with a soft hi-hat pattern.
 
@@ -76,7 +76,7 @@ Each application gets its own 5 second stage. The intro and outro bookend the se
 
 **Visual:** Busy restaurant kitchen. A chef works a range with a griddle and a deep fryer under an extraction hood. Steam rises while an orange hose feeds the range from the wall.
 
-**Characters:** Chef in a white jacket and toque
+**Characters:** Chef in a white jacket and toque. Ends with a thumbs-up.
 
 **Music cue:** Full groove with a bright lead.
 
@@ -88,7 +88,7 @@ Each application gets its own 5 second stage. The intro and outro bookend the se
 
 **Visual:** Campsite at golden hour, with pine trees and a tent. Two campers cook on a portable gas grill fed by a red hose from a propane cylinder. A small generator and camp stove sit nearby.
 
-**Characters:** Two campers by the grill: hi-vis jacket and cap, overalls and a straw hat
+**Characters:** Two campers by the grill: hi-vis jacket and cap, overalls and a straw hat. Ends with a thumbs-up.
 
 **Music cue:** Tempo steady, with a higher melody over the chords.
 
@@ -100,7 +100,7 @@ Each application gets its own 5 second stage. The intro and outro bookend the se
 
 **Visual:** Poultry house at dawn. A farmer checks a gas brooder heater hanging above a group of chicks. An orange hose runs through the wall from an outside cylinder. A crop dryer burner glows in the next bay.
 
-**Characters:** Farmer in a straw hat, overalls and leather gloves, with chicks
+**Characters:** Farmer in a straw hat, overalls and leather gloves, with chicks. Ends with a thumbs-up.
 
 **Music cue:** Mellow arrangement with a gentle bass line.
 
@@ -112,7 +112,7 @@ Each application gets its own 5 second stage. The intro and outro bookend the se
 
 **Visual:** Factory floor. Boxes move along a conveyor past a furnace. A worker in a hard hat uses a pneumatic tool, and a blue 5/16 inch hose carries compressed air from an overhead pipe rack.
 
-**Characters:** Factory worker in a hard hat, hi-vis vest and gloves
+**Characters:** Factory worker in a hard hat, hi-vis vest and gloves. Ends with a thumbs-up.
 
 **Music cue:** Driving rhythm with a rising filter.
 

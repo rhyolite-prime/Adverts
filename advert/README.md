@@ -11,6 +11,13 @@ A 45-second animated advert for RhyolitePrime Industrial PVC Gas Hoses, built pr
 
 Each application gets its own 5-second stage. An intro and an outro bookend the seven application stages. Each stage shows its key selling point in the lower third, with the product spec line and a progress bar. The music changes chord at every cut and has a bell stinger on each selling point.
 
+## Look and feel
+
+- Colours follow the RhyolitePrime palette: primary `#80004d` for the intro title, the wordmark and the brand; accent `#cc6699` for stage labels; light `#f8f9fa` for body text; dark `#212529` for the lower-third band; success `#4bb543` for the progress bar. The hoses keep their product colours (3/8 inch orange, 5/16 inch red and blue).
+- Every application stage ends with a character giving a thumbs-up, to show satisfaction and trust.
+- Characters are built from finer meshes with one level of subdivision. Surfaces carry procedural bump and colour variation (concrete, wood, grass, cloth, leather, skin and hair).
+- Characters face the camera. The welder and oxy welder wear visor helmets, leather jackets, aprons and gloves. The home cook wears an apron, and the chef wears a white jacket and toque.
+
 ## Requirements
 
 - Blender 5.1.2 (the scripts use the Blender 5.x Python API, for example `sequence_editor.strips`).
@@ -62,4 +69,4 @@ Full 1080p at 32 samples is slow on CPU. Expect hours on a typical CPU and much 
 - Oxyacetylene uses red for fuel gas and blue for oxygen. That is the common convention. Confirm it against your local standard before publishing.
 - The characters are stylised figures built from primitives, not a detailed rig. The camera and text overlay are fixed to the lens, so the title stays on screen.
 - The PNG frames are muxed with ffmpeg, not Blender's built-in FFmpeg writer. That keeps the audio path simple and works with any Blender build.
-- Testing: the scene was built and rendered headless with the Blender 5.0.1 Python module (the newest published on PyPI), not the 5.1.2 desktop binary. The Cycles path was exercised. EEVEE and the GPU path were not tested.
+- Testing: the latest changes were checked by building the scene headless with the Blender 5.0.1 Python module (no animation was rendered). Earlier builds were rendered with the same module (the newest published on PyPI), not the 5.1.2 desktop binary. The Cycles path was exercised. EEVEE and the GPU path were not tested.
