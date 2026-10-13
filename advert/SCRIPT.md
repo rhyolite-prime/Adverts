@@ -26,7 +26,7 @@ Each application gets its own 5 second stage. The intro and outro bookend the se
 
 **Spec line:** RhyolitePrime Industrial PVC Gas Hoses
 
-**Visual:** Dark steel studio. An orange 3/8 inch hose uncoils from the centre of the frame, sweeps across the floor and forms an underline as the RhyolitePrime wordmark rises in 3D. The camera pushes in slowly.
+**Visual:** Dark steel studio. An orange 3/8 inch hose uncoils from the centre of the frame, sweeps across the floor and forms an underline as the RhyolitePrime wordmark rises in 3D. A framed product photo of the red, blue and yellow hoses pops in above the wordmark. The camera pushes in slowly.
 
 **Characters:** None
 

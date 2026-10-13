@@ -30,7 +30,8 @@ SHOTS = [
         "visual": (
             "Dark steel studio. An orange 3/8 inch hose uncoils from the centre of the frame, "
             "sweeps across the floor and forms an underline as the RhyolitePrime wordmark rises "
-            "in 3D. The camera pushes in slowly."
+            "in 3D. A framed product photo of the red, blue and yellow hoses pops in above the "
+            "wordmark. The camera pushes in slowly."
         ),
         "characters": "None",
         "music": "Intro groove fades in on a C major / A minor pad, with a bell stinger on the title.",

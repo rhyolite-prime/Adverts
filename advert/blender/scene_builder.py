@@ -20,6 +20,7 @@ Coordinate conventions
 """
 
 import math
+import os
 import random
 
 import bmesh
@@ -604,6 +605,54 @@ def tent_geom(w=1.1, d=1.0, h=1.5):
 # Stages
 # ---------------------------------------------------------------------------
 
+IMAGES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "images")
+PRODUCT_PHOTO = os.path.join(IMAGES_DIR, "all-products.jpg")
+
+
+def photo_card(b, name, path, loc, width, pop_in):
+    """Framed product photo facing the camera (-Y). `loc` is its centre; the frame is primary-coloured.
+
+    The photo is shown unlit (emission), so the hose colours in the picture stay as they were taken.
+    """
+    img = bpy.data.images.load(path, check_existing=True)
+    img.pack()                      # keep the photo inside the .blend, so it opens anywhere
+    aspect = img.size[1] / img.size[0]
+    w, h = width, width * aspect
+    mat = bpy.data.materials.new(f"ad_{name}_photo")
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    tex.image = img
+    em = nt.nodes.new("ShaderNodeEmission")
+    em.inputs["Strength"].default_value = 1.0
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    nt.links.new(tex.outputs["Color"], em.inputs["Color"])
+    nt.links.new(em.outputs["Emission"], out.inputs["Surface"])
+
+    # Quad with UVs, in the XY plane; rotated so it faces -Y like the rest of the set.
+    me = bpy.data.meshes.new(f"{name}_quad")
+    me.from_pydata([(-w / 2, -h / 2, 0), (w / 2, -h / 2, 0), (w / 2, h / 2, 0), (-w / 2, h / 2, 0)],
+                   [], [(0, 1, 2, 3)])
+    me.update()
+    uv = me.uv_layers.new(name="UVMap")
+    for li, (u, v) in enumerate([(0, 0), (1, 0), (1, 1), (0, 1)]):
+        uv.data[li].uv = (u, v)
+    me.materials.append(mat)
+    photo = bpy.data.objects.new(name, me)
+    photo.rotation_euler = (PI / 2, 0, 0)
+    photo.location = loc
+    b.link(photo)
+
+    border_w = 0.04
+    border = b.obj(f"{name}_frame", G.box(w + 2 * border_w, h + 2 * border_w, 0.01), M("brand_primary"),
+                   loc=(loc[0], loc[1] + 0.02, loc[2]), rot=(PI / 2, 0, 0))
+    for o in (photo, border):
+        key(o, pop_in, scale=(0.01, 0.01, 0.01))
+        key(o, pop_in + 16, scale=(1.0, 1.0, 1.0))
+    return photo
+
+
 def stage_intro(b, shot):
     f0, f1 = b.f0, b.f1
     b.camera(start=(0.0, -7.6, 1.5), end=(0.0, -6.6, 1.6), target=(0.0, 0.0, 1.4), drop=0.0)
@@ -635,6 +684,9 @@ def stage_intro(b, shot):
     path = [(-4.8, -0.4, 0.25), (-3.2, -0.3, 0.95), (-1.2, -0.25, 1.02), (1.2, -0.25, 1.02),
             (3.2, -0.3, 0.95), (4.8, -0.4, 0.25)]
     hose(b, "HoseIntro", path, M("hose_orange"), 0.035, reveal=(f0 + 4, f0 + 60))
+
+    # Product photo above the wordmark, kept below the top label band at every camera position
+    photo_card(b, "IntroPhoto", PRODUCT_PHOTO, loc=(0.0, 0.3, 2.36), width=1.1, pop_in=f0 + 44)
     b.overlay(shot, title_size=0.13, title_material="brand_primary")
 
 
