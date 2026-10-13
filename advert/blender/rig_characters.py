@@ -31,7 +31,7 @@ import os
 from collections import Counter
 
 import bpy
-from mathutils import Matrix, Vector
+from mathutils import Euler, Matrix, Vector
 
 import geometry as G
 
@@ -176,6 +176,7 @@ class Person:
     def __init__(self, b, name, kind, loc, yaw, mats, f0, hair=True):
         self.b = b
         self.name = name
+        self.kind = kind
         self.loc = Vector(loc)
         self.yaw = yaw
         self.f0 = f0
@@ -197,6 +198,21 @@ class Person:
         bpy.context.view_layer.update()
         self.bones = arm.pose.bones
         self._warm = {}
+        self._fk_mats = {}
+        for side, sfx in SIDE_SUFFIX.items():
+            up = self.bones[f"upper_arm_fk{sfx}"]
+            fore = self.bones[f"forearm_fk{sfx}"]
+            hand = self.bones[f"hand_fk{sfx}"]
+            t1 = self.bones[f"thumb.01{sfx}"]
+            t3 = self.bones[f"thumb.03{sfx}"]
+            self._fk_mats[side] = (
+                up.parent.matrix.copy() @ (up.parent.bone.matrix_local.inverted() @ up.bone.matrix_local),
+                up.bone.matrix_local.inverted() @ fore.bone.matrix_local,
+                fore.bone.matrix_local.inverted() @ hand.bone.matrix_local,
+                hand.bone.matrix_local.inverted() @ t1.bone.matrix_local,
+                hand.bone.matrix_local.inverted() @ t3.bone.matrix_local,
+                Vector((0.0, t3.bone.length, 0.0)),
+            )
         # Face front and mouth height measured on the Jack and Jill meshes (figure metres).
         self.face_y, self.mouth_z = (-0.136, 1.47) if kind == "jack" else (-0.120, 1.44)
         self.chest_y = -0.095 if kind == "jack" else -0.125     # torso front at chest height, plus a margin
@@ -323,21 +339,32 @@ class Person:
         up_n, fore_n, hand_n = f"upper_arm_fk{sfx}", f"forearm_fk{sfx}", f"hand_fk{sfx}"
         wrist_t = self._rig(wrist_local)
         elbow_t = self._rig(elbow_local)
-        thumb_base, thumb_tip = f"thumb.01{sfx}", f"thumb.03{sfx}"
+        up_base, fore_rel, hand_rel, t1_rel, t3_rel, t3_len = self._fk_mats[side]
 
         if fist:
             self._set_fingers(side, 1.25)
 
+        def eval_chain(x, with_hand=False):
+            r_up = Euler((x[0], x[1], x[2]), "XYZ").to_matrix().to_4x4()
+            r_fore = Euler((x[3], x[4], x[5]), "XYZ").to_matrix().to_4x4()
+            m_up = up_base @ r_up
+            m_fore = m_up @ fore_rel @ r_fore
+            if with_hand:
+                r_hand = Euler((x[6], x[7], x[8]), "XYZ").to_matrix().to_4x4()
+                m_hand = m_fore @ hand_rel @ r_hand
+            else:
+                m_hand = m_fore @ hand_rel
+            return m_fore, m_hand
+
         def arm_residuals(x):
-            self._set_angles([up_n, fore_n], x)
-            bpy.context.view_layer.update()
-            wrist = self._bone_head(hand_n)
-            elbow = self._bone_head(fore_n)
+            m_fore, m_hand = eval_chain(x, with_hand=False)
+            wrist = m_hand.translation
+            elbow = m_fore.translation
             r = [wrist[k] - wrist_t[k] for k in range(3)] + [0.12 * (elbow[k] - elbow_t[k]) for k in range(3)]
             if thumb_up:
-                base = self._bone_head(thumb_base)
-                tip = self._bone_tail(thumb_tip)
-                d = (tip - base)
+                base = (m_hand @ t1_rel).translation
+                tip = (m_hand @ t3_rel) @ t3_len
+                d = tip - base
                 d = d / d.length if d.length > 1e-9 else d
                 r += [0.6 * (d[k] - (1.0 if k == 2 else 0.0)) for k in range(3)]
             return r
@@ -363,12 +390,11 @@ class Person:
         if thumb_up:
             # Second pass: turn the hand so the thumb points up, keeping the wrist on target.
             def hand_residuals(y):
-                self._set_angles([up_n, fore_n, hand_n], y)
-                bpy.context.view_layer.update()
-                wrist = self._bone_head(hand_n)
-                elbow = self._bone_head(fore_n)
-                base = self._bone_head(thumb_base)
-                tip = self._bone_tail(thumb_tip)
+                m_fore, m_hand = eval_chain(y, with_hand=True)
+                wrist = m_hand.translation
+                elbow = m_fore.translation
+                base = (m_hand @ t1_rel).translation
+                tip = (m_hand @ t3_rel) @ t3_len
                 d = tip - base
                 d = d / d.length if d.length > 1e-9 else d
                 r = [3.0 * (wrist[k] - wrist_t[k]) for k in range(3)]
@@ -398,7 +424,6 @@ class Person:
 
     def reach(self, frame, side, world_target, grip=0.6):
         """Key the arm so the wrist reaches `world_target`. Returns the wrist's world position."""
-        sfx = SIDE_SUFFIX[side]
         sg = SIDE_SIGN[side]
         target = self.to_local(world_target)
         shoulder = Vector((sg * SHOULDER[0], SHOULDER[1], SHOULDER[2]))
@@ -408,6 +433,18 @@ class Person:
         self._key_limb(side, frame)
         self.last_error = err
         return self.grip_point(side)
+
+    def work_motion(self, side, keyframes, grip=0.6):
+        """Animate `side` arm through a list of (frame, world_target) pairs.
+
+        Returns a list of (frame, world_grip_point) tuples so handheld tools can
+        be keyframed in lockstep with the hand.
+        """
+        out = []
+        for frame, target in keyframes:
+            gp = self.reach(frame, side, target, grip=grip)
+            out.append((frame, gp))
+        return out
 
     def grip_point(self, side):
         """World point in the middle of the hand (between the wrist and the middle finger's base)."""
@@ -462,22 +499,65 @@ class Person:
         else:
             raise ValueError(style)
 
-    def visor(self, mat):
-        """Welding visor across the face (in front of the helmet's brow)."""
-        self._attach(f"{self.name}_visor", G.box(0.2, 0.03, 0.09), mat, loc_m=(0, -0.155, 1.645))
+    def visor(self, mat, flip_frame=None):
+        """Welding visor across the face. Flips up onto the helmet brow before the smile/thumbs-up."""
+        down_loc = tuple(self._rig((0, -0.155, 1.645)))
+        up_loc = tuple(self._rig((0, -0.135, 1.725)))
+        v = self._attach(f"{self.name}_visor", G.box(0.2, 0.03, 0.09), mat, loc_m=(0, -0.155, 1.645))
+        ff = (self.f0 + 78) if flip_frame is None else flip_frame
+        if ff:
+            v.location = down_loc
+            v.rotation_euler = (0.0, 0.0, 0.0)
+            v.keyframe_insert("location", frame=self.f0)
+            v.keyframe_insert("rotation_euler", frame=self.f0)
+            v.keyframe_insert("location", frame=ff)
+            v.keyframe_insert("rotation_euler", frame=ff)
+            v.location = up_loc
+            v.rotation_euler = (-0.95, 0.0, 0.0)
+            v.keyframe_insert("location", frame=ff + 10)
+            v.keyframe_insert("rotation_euler", frame=ff + 10)
+        return v
 
     def smile(self, frame, mat):
-        """Smile: a short curved arc across the mouth. The rig has no face controls or shape keys."""
-        # Measured front of the face at mouth height (figure metres), set per figure in __init__.
-        y, z = self.face_y, self.mouth_z
-        pts = [(-0.035, y, z + 0.014), (0.0, y - 0.004, z), (0.035, y, z + 0.014)]
-        return self._curve(f"{self.name}_smile", pts, mat, bevel=0.0048, frame=frame, poly=False)
+        """Smile: a curved bright arc across the mouth. The rig has no face controls or shape keys."""
+        y, z = self.face_y - 0.005, self.mouth_z
+        pts = [(-0.038, y, z + 0.015), (0.0, y - 0.005, z - 0.002), (0.038, y, z + 0.015)]
+        return self._curve(f"{self.name}_smile", pts, mat, bevel=0.0062, frame=frame, poly=False)
 
-    def check(self, frame, mat):
-        """Green check mark on the chest, facing the camera (-Y). Kept low in the frame, clear of the head."""
-        y = self.chest_y
-        pts = [(-0.10, y, 1.24), (-0.03, y, 1.15), (0.11, y, 1.35)]
-        return self._curve(f"{self.name}_check", pts, mat, bevel=0.02, frame=frame, poly=True)
+    def check(self, frame, mat, badge_mat=None, rim_mat=None):
+        """Green check mark on a circular chest badge, facing the camera (-Y)."""
+        y = self.chest_y - 0.015
+        cx, cz = 0.0, 1.24
+        if badge_mat is not None:
+            disc = self._attach(
+                f"{self.name}_check_disc",
+                G.cylinder(0.105, 0.008, 28, z0=-0.004),
+                badge_mat,
+                loc_m=(cx, y + 0.012, cz),
+                rot=(math.pi / 2, 0.0, 0.0),
+            )
+            self._pop_scale(disc, frame)
+        if rim_mat is not None:
+            rim = self._attach(
+                f"{self.name}_check_rim",
+                G.ring(0.098, 0.114, 0.010, 28, z0=-0.005),
+                rim_mat,
+                loc_m=(cx, y + 0.011, cz),
+                rot=(math.pi / 2, 0.0, 0.0),
+            )
+            self._pop_scale(rim, frame)
+        pts = [(-0.065, y, cz - 0.005), (-0.018, y, cz - 0.062), (0.072, y, cz + 0.068)]
+        return self._curve(f"{self.name}_check", pts, mat, bevel=0.019, frame=frame, poly=True)
+
+    def _pop_scale(self, obj, frame):
+        full = 1.0 / S
+        over = 1.12 / S
+        obj.scale = (0.001, 0.001, 0.001)
+        obj.keyframe_insert("scale", frame=frame)
+        obj.scale = (over, over, over)
+        obj.keyframe_insert("scale", frame=frame + 6)
+        obj.scale = (full, full, full)
+        obj.keyframe_insert("scale", frame=frame + 10)
 
     def _curve(self, name, pts, mat, bevel, frame, poly=True):
         cu = bpy.data.curves.new(name, "CURVE")
@@ -501,11 +581,5 @@ class Person:
         o = bpy.data.objects.new(name, cu)
         self.b.link(o)
         o.parent = self.arm
-        o.scale = (1.0 / S, 1.0 / S, 1.0 / S)
-        # pop in: tiny at `frame`, full size 8 frames later
-        start = frame
-        o.scale = (0.001, 0.001, 0.001)
-        o.keyframe_insert("scale", frame=start)
-        o.scale = (1.0 / S, 1.0 / S, 1.0 / S)
-        o.keyframe_insert("scale", frame=start + 8)
+        self._pop_scale(o, frame)
         return o

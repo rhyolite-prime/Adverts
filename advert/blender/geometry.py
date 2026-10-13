@@ -42,6 +42,40 @@ def cylinder(r, h, segments=28, z0=0.0, r_top=None, caps=True):
     return v, f
 
 
+def ring(r_inner, r_outer, h, segments=28, z0=0.0):
+    """Hollow annular cylinder (tube/ring/hex nut) from z0 to z0+h."""
+    v, f = [], []
+    # 0 .. segments-1: bottom outer
+    for k in range(segments):
+        a = 2 * math.pi * k / segments
+        v.append((r_outer * math.cos(a), r_outer * math.sin(a), z0))
+    # segments .. 2*segments-1: top outer
+    for k in range(segments):
+        a = 2 * math.pi * k / segments
+        v.append((r_outer * math.cos(a), r_outer * math.sin(a), z0 + h))
+    # 2*segments .. 3*segments-1: bottom inner
+    for k in range(segments):
+        a = 2 * math.pi * k / segments
+        v.append((r_inner * math.cos(a), r_inner * math.sin(a), z0))
+    # 3*segments .. 4*segments-1: top inner
+    for k in range(segments):
+        a = 2 * math.pi * k / segments
+        v.append((r_inner * math.cos(a), r_inner * math.sin(a), z0 + h))
+
+    s = segments
+    for k in range(s):
+        k2 = (k + 1) % s
+        # outer wall
+        f.append((k, k2, s + k2, s + k))
+        # inner wall
+        f.append((2 * s + k2, 2 * s + k, 3 * s + k, 3 * s + k2))
+        # top annular cap
+        f.append((s + k, s + k2, 3 * s + k2, 3 * s + k))
+        # bottom annular cap
+        f.append((2 * s + k, 2 * s + k2, k2, k))
+    return v, f
+
+
 def cone(r, h, segments=16, z0=0.0):
     """Cone with its base at z0 and tip at z0+h (used for flames and hoods)."""
     return cylinder(r, h, segments, z0, r_top=0.0, caps=True)

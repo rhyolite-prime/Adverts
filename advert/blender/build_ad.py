@@ -9,16 +9,17 @@ Run from a terminal (Blender 5.1.2 on your PATH, or the full path to the binary)
 
 Or open build_ad.py in Blender's Text Editor and press Run Script (defaults apply).
 
-After the frames are rendered, the MP4 with the background music is made by
-ffmpeg. This step does not need Blender:
+After the frames are rendered, the MP4 with the background music, sound effects,
+and voiceover is made by ffmpeg. This step does not need Blender:
 
     python3 build_ad.py --mux-only
 
 Outputs (in advert/output/, which is git-ignored):
-    RhyolitePrime_Advert.blend   the editable Blender scene (music strip on the timeline)
-    background_music.wav         the generated background track
+    RhyolitePrime_Advert.blend   the editable Blender scene (soundtrack & VO strips on timeline)
+    background_music.wav         mastered soundtrack (music + diegetic SFX + ducked voiceover)
+    voiceover_track.wav          aligned 45s spoken voiceover stem
     frames/frame_NNNN.png        the rendered frames
-    RhyolitePrime_Advert.mp4     final video with music (needs ffmpeg)
+    RhyolitePrime_Advert.mp4     final video with soundtrack (needs ffmpeg)
 """
 
 import argparse
@@ -38,6 +39,7 @@ OUT_DIR = os.path.abspath(os.path.join(HERE, "..", "output"))
 FRAMES_DIR = os.path.join(OUT_DIR, "frames")
 BLEND_PATH = os.path.join(OUT_DIR, "RhyolitePrime_Advert.blend")
 MUSIC_PATH = os.path.join(OUT_DIR, "background_music.wav")
+VO_STEM_PATH = os.path.join(OUT_DIR, "voiceover_track.wav")
 MP4_PATH = os.path.join(OUT_DIR, "RhyolitePrime_Advert.mp4")
 TOTAL_FRAMES = int(round(S.SHOT_SECONDS * S.FPS)) * len(S.SHOTS)
 
@@ -84,13 +86,14 @@ def find_ffmpeg():
 
 
 def mux(out_dir, start, end, fps=S.FPS):
-    """Combine the rendered PNG frames with the music into an MP4 (uses ffmpeg)."""
+    """Combine the rendered PNG frames with the mastered soundtrack into an MP4 (uses ffmpeg)."""
     ffmpeg = find_ffmpeg()
     frames_dir = os.path.join(out_dir, "frames")
     if not os.path.isdir(frames_dir):
         raise SystemExit(f"no frames found in {frames_dir}; render first")
-    if not os.path.exists(MUSIC_PATH):
-        music.build(MUSIC_PATH)
+    music_path = os.path.join(out_dir, "background_music.wav")
+    if not os.path.exists(music_path):
+        music.build(music_path)
     if ffmpeg is None:
         print("ffmpeg not found. Install it (e.g. `brew install ffmpeg`, `apt install ffmpeg`, or "
               "`pip install imageio-ffmpeg`) and re-run with --mux-only.")
@@ -101,7 +104,7 @@ def mux(out_dir, start, end, fps=S.FPS):
         ffmpeg, "-y", "-loglevel", "error",
         "-framerate", str(fps), "-start_number", str(start),
         "-i", os.path.join(frames_dir, "frame_%04d.png"),
-        "-ss", f"{audio_offset:.4f}", "-i", os.path.join(out_dir, "background_music.wav"),
+        "-ss", f"{audio_offset:.4f}", "-i", music_path,
         "-map", "0:v", "-map", "1:a",
         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", "-preset", "medium",
         "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart",
@@ -131,8 +134,9 @@ def run_blender(args):
     scene = bpy.context.scene
 
     music_path = os.path.join(args.out, "background_music.wav")
-    print("[advert] generating background music ...")
-    music.build(music_path)
+    vo_stem_path = os.path.join(args.out, "voiceover_track.wav")
+    print("[advert] generating soundtrack (music + SFX + ducked voiceover) ...")
+    music.build(music_path, vo_stem_out=vo_stem_path)
 
     print("[advert] building scenes ...")
     scene_builder.build_scene(scene)
@@ -167,10 +171,13 @@ def run_blender(args):
     except TypeError:
         pass
 
-    # Put the music on the timeline so it can be heard while editing in Blender.
+    # Put the mastered soundtrack (and separate muted VO stem for reference) on the VSE timeline.
     se = scene.sequence_editor_create()
     strips = se.strips if hasattr(se, "strips") else se.sequences
     strips.new_sound("Background music", os.path.abspath(music_path), 1, 1)
+    if os.path.isfile(vo_stem_path):
+        vo_strip = strips.new_sound("Voiceover Stem", os.path.abspath(vo_stem_path), 2, 1)
+        vo_strip.mute = True  # already mixed with auto-ducking into channel 1
 
     os.makedirs(args.out, exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(args.out, "RhyolitePrime_Advert.blend"))

@@ -4,19 +4,20 @@ Layout of the timeline
 ----------------------
 * 9 stages (see shots.py), 5 seconds each, 120 frames at 24 fps.
 * Stage i owns frames [1 + 120*i, 120*(i+1)].
-* Each stage has its own camera. Camera markers on the timeline switch the
-  active camera at each stage start.
+* Each stage has its own camera with Depth of Field focused on the stage subject.
+  Camera markers on the timeline switch the active camera at each stage start.
 * Every object in a stage is keyframed to be visible only inside that stage's
   frame range (hide_viewport / hide_render), so all stages can live in one scene.
-* The on-screen text (key selling point, spec line, label) and the progress bar
-  are parented to the stage camera, so they stay put on screen.
+* The on-screen text (key selling point, spec line, label, brand corner pill) and
+  the progress bar are parented to the stage camera, so they stay put on screen.
 
 Coordinate conventions
 ----------------------
 * 1 unit = 1 metre. Z is up. Floor is z = 0.
 * Characters face -Y when their yaw is 0. yaw = pi faces +Y.
-* Characters are rigged (rig_characters.py). Wrist targets are figure-local metres, given to
-  `Person.reach`. Character 'r' is the character's right hand (-X when facing -Y).
+* Characters are rigged (rig_characters.py). Wrist targets are world metres, given to
+  `Person.reach` or `Person.work_motion`. Character 'r' is the character's right hand
+  (-X when facing -Y).
 """
 
 import math
@@ -37,6 +38,13 @@ SENSOR_HALF = 18.0           # 36 mm sensor, half width, for 16:9 frames
 PI = math.pi
 
 PALETTE = {"primary": "#80004d", "accent": "#cc6699", "light": "#f8f9fa", "dark": "#212529", "success": "#4bb543"}
+
+FONT_CANDIDATES = (
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+    "C:/Windows/Fonts/arialbd.ttf",
+)
 
 
 def _srgb_to_linear(c):
@@ -70,8 +78,8 @@ MATERIAL_DEFS = {
     "concrete": dict(color=(0.24, 0.24, 0.25), rough=0.9, bump=0.25, var=(0.3, 0.3, 0.31), tex_scale=25),
     "wall_dark": dict(color=(0.09, 0.11, 0.14), rough=0.85, bump=0.06, tex_scale=15),
     "wall_light": dict(color=(0.55, 0.55, 0.52), rough=0.8, bump=0.06, tex_scale=15),
-    "steel": dict(color=(0.5, 0.5, 0.54), rough=0.3, metal=1.0, bump=0.03, tex_scale=60),
-    "dark_steel": dict(color=(0.08, 0.08, 0.09), rough=0.4, metal=0.6),
+    "steel": dict(color=(0.5, 0.5, 0.54), rough=0.28, metal=1.0, bump=0.03, tex_scale=60),
+    "dark_steel": dict(color=(0.08, 0.08, 0.09), rough=0.38, metal=0.65),
     "wood": dict(color=(0.42, 0.26, 0.13), rough=0.6, bump=0.12, var=(0.55, 0.36, 0.2), tex_scale=12),
     "wood_dark": dict(color=(0.2, 0.12, 0.07), rough=0.7, bump=0.1, tex_scale=12),
     # Dark skin tones (sRGB hex, converted to linear). Subsurface is added in M() for names starting skin.
@@ -81,55 +89,75 @@ MATERIAL_DEFS = {
     "hair_coily": dict(color=(0.02, 0.014, 0.011), rough=0.85, bump=0.35, tex_scale=90),
     "navy": dict(color=(0.08, 0.1, 0.22), rough=0.8, bump=0.06, tex_scale=120),
     "cap": dict(color=(0.2, 0.3, 0.5), rough=0.7, bump=0.06, tex_scale=120),
-    "black": dict(color=(0.02, 0.02, 0.02), rough=0.6),
+    "black": dict(color=(0.02, 0.02, 0.02), rough=0.55),
     "leather": dict(color=(0.32, 0.18, 0.09), rough=0.8, bump=0.2, tex_scale=60),
     "overalls": dict(color=(0.1, 0.27, 0.55), rough=0.8, bump=0.06, tex_scale=120),
     "apron_red": dict(color=(0.6, 0.07, 0.07), rough=0.8, bump=0.06, tex_scale=120),
     "chef_white": dict(color=(0.93, 0.93, 0.92), rough=0.7, bump=0.05, tex_scale=120),
     "hi_vis": dict(color=(1.0, 0.8, 0.05), rough=0.5, emit=(1.0, 0.7, 0.0), emit_strength=0.3, bump=0.05, tex_scale=120),
-    "hardhat": dict(color=(1.0, 0.75, 0.05), rough=0.4),
+    "hardhat": dict(color=(1.0, 0.75, 0.05), rough=0.35, coat=0.5),
     "straw": dict(color=(0.75, 0.6, 0.3), rough=0.9),
     "grey_shirt": dict(color=(0.4, 0.42, 0.45), rough=0.8, bump=0.06, tex_scale=120),
-    "hose_orange": dict(color=(1.0, 0.36, 0.04), rough=0.35),
-    "hose_red": dict(color=(0.75, 0.05, 0.04), rough=0.35),
-    "hose_blue": dict(color=(0.03, 0.22, 0.8), rough=0.35),
-    "cyl_grey": dict(color=(0.42, 0.43, 0.47), rough=0.35, metal=0.6),
-    "cyl_red": dict(color=(0.6, 0.05, 0.04), rough=0.35, metal=0.4),
-    "cyl_blue": dict(color=(0.04, 0.17, 0.62), rough=0.35, metal=0.4),
-    "brass": dict(color=(0.8, 0.6, 0.25), rough=0.3, metal=1.0),
-    "band_white": dict(color=(0.95, 0.95, 0.95), rough=0.5),
+    # Reinforced PVC gas hoses with glossy clearcoat and fine braided/ribbed surface texture
+    "hose_orange": dict(color=(1.0, 0.36, 0.04), var=(0.92, 0.30, 0.02), rough=0.26, coat=0.65, bump=0.08, tex_scale=140),
+    "hose_red": dict(color=(0.78, 0.05, 0.04), var=(0.65, 0.03, 0.03), rough=0.26, coat=0.65, bump=0.08, tex_scale=140),
+    "hose_blue": dict(color=(0.03, 0.24, 0.84), var=(0.02, 0.18, 0.70), rough=0.26, coat=0.65, bump=0.08, tex_scale=140),
+    "cyl_grey": dict(color=(0.42, 0.43, 0.47), rough=0.32, metal=0.65),
+    "cyl_red": dict(color=(0.6, 0.05, 0.04), rough=0.32, metal=0.45),
+    "cyl_blue": dict(color=(0.04, 0.17, 0.62), rough=0.32, metal=0.45),
+    "brass": dict(color=(0.84, 0.63, 0.24), rough=0.25, metal=1.0),
+    "band_white": dict(color=(0.95, 0.95, 0.95), rough=0.45, bump=0.12, tex_scale=160),
+    "smile_white": dict(color=(1.0, 1.0, 1.0), rough=0.2, emit=(1.0, 1.0, 1.0), emit_strength=2.2),
     "grass": dict(color=(0.13, 0.36, 0.09), rough=0.95, bump=0.3, var=(0.22, 0.45, 0.12), tex_scale=30),
     "bark": dict(color=(0.25, 0.15, 0.08), rough=0.9, bump=0.4, tex_scale=20),
     "leaf": dict(color=(0.1, 0.3, 0.1), rough=0.9),
     "tent": dict(color=(0.52, 0.56, 0.32), rough=0.9, bump=0.08, tex_scale=40),
-    "tile": dict(color=(0.9, 0.88, 0.83), rough=0.4, bump=0.05, tex_scale=30),
+    "tile": dict(color=(0.9, 0.88, 0.83), rough=0.38, bump=0.05, tex_scale=30),
     "cabinet": dict(color=(0.78, 0.72, 0.6), rough=0.5),
-    "counter": dict(color=(0.14, 0.14, 0.15), rough=0.3, bump=0.04, tex_scale=40),
-    "stainless": dict(color=(0.65, 0.66, 0.68), rough=0.22, metal=1.0),
+    "counter": dict(color=(0.14, 0.14, 0.15), rough=0.28, bump=0.04, tex_scale=40),
+    "stainless": dict(color=(0.68, 0.69, 0.72), rough=0.20, metal=1.0),
     "straw_floor": dict(color=(0.55, 0.42, 0.2), rough=0.95, bump=0.3, var=(0.72, 0.55, 0.25), tex_scale=25),
     "barn_wood": dict(color=(0.3, 0.18, 0.1), rough=0.8, bump=0.15, tex_scale=12),
     "chick": dict(color=(1.0, 0.82, 0.2), rough=0.6),
     "cardboard": dict(color=(0.6, 0.45, 0.28), rough=0.8, bump=0.15, tex_scale=40),
     "conveyor": dict(color=(0.07, 0.07, 0.08), rough=0.6, bump=0.12, tex_scale=30),
-    "pipe_silver": dict(color=(0.7, 0.7, 0.72), rough=0.3, metal=1.0),
+    "pipe_silver": dict(color=(0.72, 0.72, 0.75), rough=0.26, metal=1.0),
     "steam": dict(color=(0.9, 0.9, 0.92), rough=1.0, emit=(0.9, 0.9, 0.95), emit_strength=0.25),
     "visor": dict(color=(0.02, 0.05, 0.12), rough=0.05, metal=0.5, emit=(0.2, 0.5, 1.0), emit_strength=0.6),
-    "wordmark": dict(color=PRIMARY, rough=0.25, emit=PRIMARY, emit_strength=0.8),
+    "wordmark": dict(color=PRIMARY, rough=0.22, coat=0.5, emit=PRIMARY, emit_strength=1.1),
     # Outro on a near-black stage: a metal would reflect the dark world, so use an emissive, non-metal copy.
-    "wordmark_outro": dict(color=PRIMARY, rough=0.35, emit=PRIMARY, emit_strength=3.5),
-    "glow_orange": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=(1.0, 0.42, 0.06), emit_strength=22.0),
-    "glow_blue": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=(0.3, 0.62, 1.0), emit_strength=30.0),
-    "glow_red": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=(1.0, 0.15, 0.05), emit_strength=18.0),
-    "spark": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=(1.0, 0.7, 0.25), emit_strength=40.0),
-    "text_white": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=LIGHT, emit_strength=1.6),
-    "text_accent": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=ACCENT, emit_strength=2.4),
+    "wordmark_outro": dict(color=PRIMARY, rough=0.32, emit=PRIMARY, emit_strength=3.8),
+    "glow_orange": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=(1.0, 0.42, 0.06), emit_strength=24.0),
+    "glow_blue": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=(0.3, 0.62, 1.0), emit_strength=32.0),
+    "glow_red": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=(1.0, 0.15, 0.05), emit_strength=20.0),
+    "spark": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=(1.0, 0.72, 0.28), emit_strength=44.0),
+    "text_white": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=LIGHT, emit_strength=1.7),
+    "text_accent": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=ACCENT, emit_strength=2.5),
     "bar_accent": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=ACCENT, emit_strength=3.0),
-    "brand_primary": dict(color=PRIMARY, rough=0.3, emit=PRIMARY, emit_strength=3.0),
-    "bar_success": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=SUCCESS, emit_strength=3.0),
-    "check_green": dict(color=SUCCESS, rough=0.35, emit=SUCCESS, emit_strength=1.2),
+    "brand_primary": dict(color=PRIMARY, rough=0.28, emit=PRIMARY, emit_strength=3.0),
+    "bar_success": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=SUCCESS, emit_strength=3.2),
+    "check_green": dict(color=SUCCESS, rough=0.25, emit=SUCCESS, emit_strength=2.0),
+    "check_badge_bg": dict(color=DARK, rough=0.35, emit=DARK, emit_strength=0.45),
+    "check_badge_rim": dict(color=LIGHT, rough=0.25, emit=LIGHT, emit_strength=1.5),
 }
 
 _MATS = {}
+_FONT = None
+
+
+def _get_font():
+    """Load a bold broadcast sans-serif font when available; fall back to Blender's built-in font."""
+    global _FONT
+    if _FONT is not None and _FONT.name in bpy.data.fonts:
+        return _FONT
+    for path in FONT_CANDIDATES:
+        if os.path.isfile(path):
+            try:
+                _FONT = bpy.data.fonts.load(path, check_existing=True)
+                return _FONT
+            except Exception:
+                continue
+    return None
 
 
 def _set_input(node, name, value):
@@ -170,7 +198,7 @@ def _texture(mat, bsdf, d):
 
 def M(name):
     """Return (creating on first use) the named material."""
-    if name in _MATS:
+    if name in _MATS and _MATS[name].name in bpy.data.materials:
         return _MATS[name]
     d = MATERIAL_DEFS[name]
     mat = bpy.data.materials.new(f"ad_{name}")
@@ -179,6 +207,9 @@ def M(name):
     _set_input(bsdf, "Base Color", (*d["color"], 1.0))
     _set_input(bsdf, "Roughness", d.get("rough", 0.5))
     _set_input(bsdf, "Metallic", d.get("metal", 0.0))
+    if "coat" in d:
+        _set_input(bsdf, "Coat Weight", d["coat"])
+        _set_input(bsdf, "Coat Roughness", d.get("coat_rough", 0.12))
     if name.startswith("skin"):
         # Light scattering under the skin softens the CG look.
         _set_input(bsdf, "Subsurface Weight", 0.06)
@@ -194,6 +225,8 @@ def M(name):
 
 def band_material():
     """Dark translucent bar behind the overlay text (Mix of Transparent and Principled)."""
+    if "_overlay_band" in _MATS and _MATS["_overlay_band"].name in bpy.data.materials:
+        return _MATS["_overlay_band"]
     mat = bpy.data.materials.new("ad_overlay_band")
     mat.use_nodes = True
     nt = mat.node_tree
@@ -204,10 +237,11 @@ def band_material():
     principled = nt.nodes.new("ShaderNodeBsdfPrincipled")
     _set_input(principled, "Base Color", (*DARK, 1.0))
     _set_input(principled, "Roughness", 1.0)
-    mix.inputs[0].default_value = 0.8  # 80% opaque
+    mix.inputs[0].default_value = 0.84  # 84% opaque for crisp contrast
     nt.links.new(transparent.outputs[0], mix.inputs[1])
     nt.links.new(principled.outputs[0], mix.inputs[2])
     nt.links.new(mix.outputs[0], out.inputs["Surface"])
+    _MATS["_overlay_band"] = mat
     return mat
 
 
@@ -278,8 +312,9 @@ def aim_quat(direction, axis="Z"):
 # ---------------------------------------------------------------------------
 
 class Builder:
-    def __init__(self, scene):
+    def __init__(self, scene, sun_data=None):
         self.scene = scene
+        self.sun_data = sun_data
         self.col = None
         self.objs = []
         self.cam = None
@@ -336,7 +371,7 @@ class Builder:
     def segment(self, name, p0, p1, radius, mat, cone=False, radius_top=None):
         """Cylinder (or cone, apex at p1) from p0 to p1."""
         p0v, p1v = Vector(p0), Vector(p1)
-        length = (p1v - p0v).length
+        length = max(1e-4, (p1v - p0v).length)
         if cone:
             geom = G.cone(radius, length, 20)
         else:
@@ -361,25 +396,54 @@ class Builder:
     def floor(self, mat, size=60.0):
         return self.obj("floor", G.box(size, size, 0.1), mat, loc=(0, 0, -0.05))
 
-    def world(self, color):
+    def world(self, color, sun_energy=None):
+        """Keyframe the world sky/ground gradient and per-stage Sun energy."""
         self.world_color = color
-        bg = self.scene.world.node_tree.nodes["Background"]
-        sock = bg.inputs["Color"]
-        sock.default_value = (*color, 1.0)
-        sock.keyframe_insert("default_value", frame=self.f0)
-        sock.keyframe_insert("default_value", frame=self.f1)
+        nt = self.scene.world.node_tree
+        mix = nt.nodes.get("WorldGradientMix")
+        if mix is not None:
+            low = tuple(max(0.005, c * 0.45) for c in color)
+            high = tuple(min(1.0, c * 1.35 + 0.015) for c in color)
+            mix.inputs[1].default_value = (*low, 1.0)
+            mix.inputs[2].default_value = (*high, 1.0)
+            mix.inputs[1].keyframe_insert("default_value", frame=self.f0)
+            mix.inputs[1].keyframe_insert("default_value", frame=self.f1)
+            mix.inputs[2].keyframe_insert("default_value", frame=self.f0)
+            mix.inputs[2].keyframe_insert("default_value", frame=self.f1)
+        else:
+            bg = nt.nodes["Background"]
+            sock = bg.inputs["Color"]
+            sock.default_value = (*color, 1.0)
+            sock.keyframe_insert("default_value", frame=self.f0)
+            sock.keyframe_insert("default_value", frame=self.f1)
+
+        if self.sun_data is not None:
+            if sun_energy is None:
+                if self.index in (0, len(S.SHOTS) - 1):
+                    sun_energy = 0.0   # dark studio stages: no sunlight bleed
+                elif self.index in (5, 6):
+                    sun_energy = 2.6   # outdoor & farm stages: warm sunlight
+                else:
+                    sun_energy = 0.55  # indoor workshop/kitchens: gentle directional fill
+            self.sun_data.energy = sun_energy
+            self.sun_data.keyframe_insert("energy", frame=self.f0)
+            self.sun_data.keyframe_insert("energy", frame=self.f1)
 
     # --- camera -----------------------------------------------------------
-    def camera(self, start, end, target, lens=35.0, drop=SUBJECT_DROP):
+    def camera(self, start, end, target, lens=35.0, drop=SUBJECT_DROP, fstop=None):
         """`drop` tilts the aim down so the subject sits higher, above the lower-third band."""
-        target = (target[0], target[1], target[2] - drop)
+        aim = (target[0], target[1], target[2] - drop)
         name = f"Cam{self.index + 1:02d}"
         cd = bpy.data.cameras.new(name)
         cd.lens = lens
         cd.clip_end = 300.0
-        cam = bpy.data.objects.new(name, cd)
         mid = (Vector(start) + Vector(end)) / 2
-        cam.rotation_euler = (Vector(target) - mid).to_track_quat("-Z", "Y").to_euler()
+        if hasattr(cd, "dof"):
+            cd.dof.use_dof = True
+            cd.dof.focus_distance = max(2.0, (Vector(target) - mid).length)
+            cd.dof.aperture_fstop = fstop if fstop is not None else (5.6 if drop == 0.0 else 3.8)
+        cam = bpy.data.objects.new(name, cd)
+        cam.rotation_euler = (Vector(aim) - mid).to_track_quat("-Z", "Y").to_euler()
         cam.location = start
         key(cam, self.f0, location=tuple(start))
         key(cam, self.f1, location=tuple(end))
@@ -397,22 +461,32 @@ class Builder:
         cu.size = size
         cu.align_x = align_x
         cu.align_y = align_y
+        font = _get_font()
+        if font is not None:
+            cu.font = font
         cu.materials.append(mat)
         o = bpy.data.objects.new(name, cu)
         o.parent = self.cam
         o.location = loc
         return self.link(o)
 
-    def overlay(self, shot, stagger=0, title_size=0.13, title_material="text_white"):
-        """Lower-third overlay: label, key selling point, spec line, progress bar.
+    def overlay(self, shot, stagger=0, title_size=0.13, title_material="text_white", hold_end=None):
+        """Lower-third overlay: label, brand corner pill, key selling point, spec line, progress bar.
 
         Everything sits on the camera at OVERLAY_DEPTH, so it stays on screen.
+        When `hold_end` is True (default on the final Outro stage), the title and
+        spec line stay at full scale through `f1` so the final frame never goes blank.
         """
         f0, f1 = self.f0, self.f1
+        if hold_end is None:
+            hold_end = (self.index == len(S.SHOTS) - 1)
         half_w = OVERLAY_DEPTH * SENSOR_HALF / self.lens
         z = -OVERLAY_DEPTH + 0.02          # text and bar sit slightly in front of the band
         band = self.obj("OverlayBand", G.box(2 * half_w + 0.4, 0.62, 0.001), band_material(),
                         loc=(0, -0.64, -OVERLAY_DEPTH - 0.02), parent=self.cam)
+        # Thin accent top rule along the lower-third band
+        self.obj("OverlayBandRule", G.box(2 * half_w + 0.4, 0.008, 0.0015), M("brand_primary"),
+                 loc=(0, -0.33, -OVERLAY_DEPTH - 0.01), parent=self.cam)
 
         self.obj("OverlayTopBand", G.box(2 * half_w + 0.4, 0.16, 0.001), band_material(),
                  loc=(0, 0.72, -OVERLAY_DEPTH - 0.02), parent=self.cam)
@@ -420,6 +494,11 @@ class Builder:
                           (-half_w + 0.14, 0.72, z), align_x="LEFT", align_y="CENTER")
         key(label, f0, location=(-half_w - 0.6, 0.72, z))
         key(label, f0 + 12, location=(-half_w + 0.14, 0.72, z))
+
+        # Persistent top-right brand corner badge on application stages
+        if 0 < self.index < len(S.SHOTS) - 1:
+            self.text("OverlayBrandCorner", "RhyolitePrime", 0.044, M("text_white"),
+                      (half_w - 0.14, 0.72, z), align_x="RIGHT", align_y="CENTER")
 
         lines = shot["title"].split("\n")
         base = title_size if len(lines) == 1 else min(title_size, 0.33 / (len(lines) * 1.3))
@@ -438,15 +517,21 @@ class Builder:
             s0 = f0 + i * stagger
             key(o, s0, scale=(0.01, 0.01, 0.01))
             key(o, s0 + 14, scale=(1.0, 1.0, 1.0))
-            key(o, f1 - 10, scale=(1.0, 1.0, 1.0))
-            key(o, f1, scale=(0.01, 0.01, 0.01))
+            if hold_end:
+                key(o, f1, scale=(1.0, 1.0, 1.0))
+            else:
+                key(o, f1 - 10, scale=(1.0, 1.0, 1.0))
+                key(o, f1, scale=(0.01, 0.01, 0.01))
 
         spec_top = -0.4 - len(lines) * pitch - 0.02
         spec = self.text("OverlaySpec", shot["spec"], 0.05, M("text_white"), (0, spec_top, z))
         key(spec, f0 + 8, scale=(0.01, 0.01, 0.01))
         key(spec, f0 + 24, scale=(1.0, 1.0, 1.0))
-        key(spec, f1 - 10, scale=(1.0, 1.0, 1.0))
-        key(spec, f1, scale=(0.01, 0.01, 0.01))
+        if hold_end:
+            key(spec, f1, scale=(1.0, 1.0, 1.0))
+        else:
+            key(spec, f1 - 10, scale=(1.0, 1.0, 1.0))
+            key(spec, f1, scale=(0.01, 0.01, 0.01))
 
         bar = self.obj("OverlayProgress", G.box(1.0, 0.02, 0.001, origin="left"), M("bar_success"),
                        loc=(-half_w, -0.85, z), parent=self.cam, scale=(0.001, 1, 1))
@@ -478,13 +563,13 @@ def outfit(skin, torso, trousers=None, sleeves=None, shoes="black", hands=None, 
 
 
 def _celebrate(person, b):
-    """After the thumbs-up: a smile and a green check mark."""
-    person.smile(b.f1 - 22, M("band_white"))
-    person.check(b.f1 - 20, M("check_green"))
+    """After the thumbs-up: a bright smile and a circular green check badge."""
+    person.smile(b.f1 - 22, M("smile_white"))
+    person.check(b.f1 - 20, M("check_green"), badge_mat=M("check_badge_bg"), rim_mat=M("check_badge_rim"))
 
 
 # ---------------------------------------------------------------------------
-# Props
+# Props & Hero Hose Details
 # ---------------------------------------------------------------------------
 
 def gas_cylinder(b, name, base, body_mat, band_mat, h=0.9, r=0.13):
@@ -508,7 +593,42 @@ def trolley(b, name, base, width=0.6):
                   loc=(x + dx, y + dy, z + 0.05), rot=(PI / 2, 0, 0), smooth=True)
 
 
-def hose(b, name, points, mat, radius, reveal=None):
+def hose_fitting(b, name, p0, p1, radius):
+    """Brass hex nut + crimped steel ferrule at a hose connection point."""
+    p0v, p1v = Vector(p0), Vector(p1)
+    d = p1v - p0v
+    if d.length < 1e-5:
+        return
+    rot = aim_quat(d)
+    b.obj(f"{name}_hex", G.ring(radius * 0.85, radius * 1.48, 0.038, segments=6, z0=0.0),
+          M("brass"), loc=tuple(p0v), rot=rot, smooth=False)
+    b.obj(f"{name}_ferrule", G.cylinder(radius * 1.22, 0.045, 18, z0=0.035),
+          M("steel"), loc=tuple(p0v), rot=rot, smooth=True)
+
+
+def hose_end_cap(b, name, loc, direction, outer_mat, radius=0.035, pop_in=None):
+    """Three-layer reinforced hose cross-section matching `images/all-products.jpg`:
+    1. Colored outer PVC jacket
+    2. White braided high-tensile fiber reinforcement middle ring
+    3. Dark black rubber/PVC inner core and hollow bore
+    """
+    rot = aim_quat(direction)
+    root = b.obj(f"{name}_cap_root", None, loc=loc, rot=rot)
+    b.obj(f"{name}_outer_layer", G.ring(radius * 0.72, radius * 1.02, 0.036, 28, z0=0.0),
+          outer_mat, parent=root, smooth=True)
+    b.obj(f"{name}_braid_layer", G.ring(radius * 0.55, radius * 0.73, 0.038, 28, z0=0.0),
+          M("band_white"), parent=root, smooth=True)
+    b.obj(f"{name}_inner_core", G.ring(radius * 0.36, radius * 0.56, 0.040, 28, z0=0.0),
+          M("black"), parent=root, smooth=True)
+    b.obj(f"{name}_bore", G.cylinder(radius * 0.36, 0.025, 24, z0=0.0),
+          M("black"), parent=root, smooth=True)
+    if pop_in is not None:
+        key(root, pop_in, scale=(0.01, 0.01, 0.01))
+        key(root, pop_in + 10, scale=(1.0, 1.0, 1.0))
+    return root
+
+
+def hose(b, name, points, mat, radius, reveal=None, fittings=True):
     """Bezier hose through `points` (world coordinates). `reveal` = (f0, f1) to animate it growing."""
     cu = bpy.data.curves.new(name, "CURVE")
     cu.dimensions = "3D"
@@ -532,6 +652,8 @@ def hose(b, name, points, mat, radius, reveal=None):
         cu.keyframe_insert("bevel_factor_end", frame=f0)
         cu.bevel_factor_end = 1.0
         cu.keyframe_insert("bevel_factor_end", frame=f1)
+    if fittings and len(points) >= 2:
+        hose_fitting(b, f"{name}_fit_start", points[0], points[1], radius)
     return o
 
 
@@ -539,9 +661,29 @@ def torch(b, name, grip, tip, body_mat=None):
     """Hand torch: handle from the grip towards the tip, with a nozzle at the tip."""
     g, t = Vector(grip), Vector(tip)
     d = (t - g).normalized()
-    handle_end = g + d * (t - g).length * 0.6
-    b.segment(name + "_handle", tuple(g), tuple(handle_end), 0.024, body_mat or M("brass"))
-    b.segment(name + "_nozzle", tuple(handle_end), tuple(t), 0.008, M("brass"))
+    length = (t - g).length
+    handle_end = g + d * length * 0.6
+    h_obj = b.segment(name + "_handle", tuple(g), tuple(handle_end), 0.024, body_mat or M("brass"))
+    n_obj = b.segment(name + "_nozzle", tuple(handle_end), tuple(t), 0.008, M("brass"))
+    return h_obj, n_obj
+
+
+def animate_torch(b, name, keyframes, body_mat=None, hide_at=None):
+    """Create a torch and animate its position/orientation through `(frame, grip, tip)` tuples."""
+    f_first, g0, t0 = keyframes[0]
+    h_obj, n_obj = torch(b, name, g0, t0, body_mat=body_mat)
+    for fr, g, t in keyframes:
+        gv, tv = Vector(g), Vector(t)
+        d = (tv - gv).normalized()
+        hend = gv + d * (tv - gv).length * 0.6
+        rot = aim_quat(tv - gv)
+        key(h_obj, fr, location=tuple(gv), rotation_euler=tuple(rot), scale=(1, 1, 1))
+        key(n_obj, fr, location=tuple(hend), rotation_euler=tuple(rot), scale=(1, 1, 1))
+    if hide_at is not None:
+        for o in (h_obj, n_obj):
+            key(o, hide_at - 1, scale=(1, 1, 1))
+            key(o, hide_at, scale=(0.001, 0.001, 0.001))
+    return h_obj, n_obj
 
 
 def flame(b, name, base, tip, mat, radius=0.035):
@@ -612,7 +754,8 @@ PRODUCT_PHOTO = os.path.join(IMAGES_DIR, "all-products.jpg")
 def photo_card(b, name, path, loc, width, pop_in):
     """Framed product photo facing the camera (-Y). `loc` is its centre; the frame is primary-coloured.
 
-    The photo is shown unlit (emission), so the hose colours in the picture stay as they were taken.
+    The photo is shown unlit (emission) with mild AgX highlight compensation so the red, blue, and
+    yellow/orange hoses retain their crisp product colours.
     """
     img = bpy.data.images.load(path, check_existing=True)
     img.pack()                      # keep the photo inside the .blend, so it opens anywhere
@@ -625,7 +768,7 @@ def photo_card(b, name, path, loc, width, pop_in):
     tex = nt.nodes.new("ShaderNodeTexImage")
     tex.image = img
     em = nt.nodes.new("ShaderNodeEmission")
-    em.inputs["Strength"].default_value = 1.0
+    em.inputs["Strength"].default_value = 1.25
     out = nt.nodes.new("ShaderNodeOutputMaterial")
     nt.links.new(tex.outputs["Color"], em.inputs["Color"])
     nt.links.new(em.outputs["Emission"], out.inputs["Surface"])
@@ -644,10 +787,12 @@ def photo_card(b, name, path, loc, width, pop_in):
     photo.location = loc
     b.link(photo)
 
-    border_w = 0.04
-    border = b.obj(f"{name}_frame", G.box(w + 2 * border_w, h + 2 * border_w, 0.01), M("brand_primary"),
-                   loc=(loc[0], loc[1] + 0.02, loc[2]), rot=(PI / 2, 0, 0))
-    for o in (photo, border):
+    border_w = 0.045
+    border = b.obj(f"{name}_frame", G.box(w + 2 * border_w, h + 2 * border_w, 0.016), M("brand_primary"),
+                   loc=(loc[0], loc[1] + 0.02, loc[2]), rot=(PI / 2, 0, 0), bevel=0.004)
+    backing = b.obj(f"{name}_backing", G.box(w + 2 * border_w + 0.03, h + 2 * border_w + 0.03, 0.01),
+                    M("dark_steel"), loc=(loc[0], loc[1] + 0.035, loc[2]), rot=(PI / 2, 0, 0))
+    for o in (photo, border, backing):
         key(o, pop_in, scale=(0.01, 0.01, 0.01))
         key(o, pop_in + 16, scale=(1.0, 1.0, 1.0))
     return photo
@@ -656,10 +801,11 @@ def photo_card(b, name, path, loc, width, pop_in):
 def stage_intro(b, shot):
     f0, f1 = b.f0, b.f1
     b.camera(start=(0.0, -7.6, 1.5), end=(0.0, -6.6, 1.6), target=(0.0, 0.0, 1.4), drop=0.0)
-    b.world((0.015, 0.015, 0.02))
+    b.world((0.015, 0.015, 0.02), sun_energy=0.0)
     b.floor(M("dark_steel"))
     b.light("KeyTop", "AREA", (0, -1.0, 6.0), (1.0, 0.95, 0.9), 900.0, size=4.0, target=(0, 0, 0))
     b.light("RimOrange", "AREA", (4.0, 3.0, 3.0), (1.0, 0.5, 0.15), 500.0, size=3.0, target=(0, 0, 1.2))
+    b.light("FrontAccent", "AREA", (-3.2, -3.5, 2.2), (0.95, 0.85, 1.0), 260.0, size=2.5, target=(0, 0, 1.2))
 
     # Wordmark rises from the floor
     cu = bpy.data.curves.new("Wordmark", "FONT")
@@ -669,6 +815,9 @@ def stage_intro(b, shot):
     cu.extrude = 0.08
     cu.bevel_depth = 0.012
     cu.bevel_resolution = 2
+    font = _get_font()
+    if font is not None:
+        cu.font = font
     cu.materials.append(M("wordmark"))
     cu.size = 1.0
     word = bpy.data.objects.new("Wordmark", cu)
@@ -680,10 +829,19 @@ def stage_intro(b, shot):
     key(word, f0 + 4, location=(0, 0.0, -0.9))
     key(word, f0 + 40, location=(0, 0.0, 1.45))
 
-    # Hose uncoils across the floor and forms an underline
-    path = [(-4.8, -0.4, 0.25), (-3.2, -0.3, 0.95), (-1.2, -0.25, 1.02), (1.2, -0.25, 1.02),
-            (3.2, -0.3, 0.95), (4.8, -0.4, 0.25)]
-    hose(b, "HoseIntro", path, M("hose_orange"), 0.035, reveal=(f0 + 4, f0 + 60))
+    # Hose sweeps across the frame above the lower-third band to underline the 3D wordmark,
+    # ending in a prominent 3-layer reinforced cross-section angled toward the camera.
+    path = [
+        (-3.6, 0.2, 0.92),
+        (-2.2, -0.15, 1.00),
+        (-0.8, -0.25, 1.04),
+        (0.8, -0.25, 1.04),
+        (2.1, -0.35, 1.00),
+        (2.85, -0.85, 1.02),
+    ]
+    hose(b, "HoseIntro", path, M("hose_orange"), 0.045, reveal=(f0 + 4, f0 + 56), fittings=False)
+    hose_end_cap(b, "IntroHoseCap", loc=(2.85, -0.85, 1.02), direction=(0.45, -0.88, 0.05),
+                 outer_mat=M("hose_orange"), radius=0.052, pop_in=f0 + 52)
 
     # Product photo above the wordmark, kept below the top label band at every camera position
     photo_card(b, "IntroPhoto", PRODUCT_PHOTO, loc=(0.0, 0.3, 2.36), width=1.1, pop_in=f0 + 44)
@@ -702,7 +860,12 @@ def stage_welding(b, shot):
     for x in (-1.3, 1.3):
         for y in (-0.2, 0.2):
             b.obj("BenchLeg", G.box(0.08, 0.08, 0.9), M("dark_steel"), loc=(x, y, 0.45))
-    plate = b.obj("SteelPlate", G.box(1.4, 0.4, 0.03), M("steel"), loc=(0.0, 0.0, 0.98), bevel=0.004)
+    b.obj("SteelPlate", G.box(1.4, 0.4, 0.03), M("steel"), loc=(0.0, 0.0, 0.98), bevel=0.004)
+    # Glowing cut kerf advancing across the steel plate as the torch cuts
+    kerf = b.obj("CutKerf", G.box(0.55, 0.025, 0.015, origin="left"), M("glow_orange"),
+                 loc=(-0.15, 0.0, 0.996), scale=(0.01, 1, 1))
+    key(kerf, f0 + 4, scale=(0.01, 1, 1))
+    key(kerf, f0 + 72, scale=(1.0, 1, 1))
 
     valve = gas_cylinder(b, "CylOrange", (-2.3, -0.9, 0.2), M("cyl_grey"), M("band_white"))
     trolley(b, "Trolley", (-2.3, -0.9, 0.0))
@@ -710,19 +873,40 @@ def stage_welding(b, shot):
     welder = R.Person(b, "Welder", "jack", (0.0, 0.42, 0.0), 0.0,
                       outfit("skin_mid", "leather", apron="leather", hands="leather"), f0=f0)
     welder.hat("helmet", M("black"))
-    welder.visor(M("visor"))
+    welder.visor(M("visor"), flip_frame=f1 - 38)
     welder.breathe(f0, f1)
-    hand = welder.reach(f0, "l", (0.25, 0.05, 1.1))     # torch hand
-    welder.reach(f0, "r", (-0.1, 0.05, 1.1))            # steadying hand on the plate
-    tip = Vector((0.2, 0.0, 1.03))
-    torch(b, "CuttingTorch", tuple(hand), tuple(tip))
-    hose(b, "HoseOrange", [valve, (-1.2, -0.7, 0.35), (-0.3, -0.4, 0.55), tuple(hand)],
+
+    # Active cutting motion across the plate from x = -0.10 to x = +0.35
+    cut_frames = [
+        (f0, (-0.05, 0.05, 1.12), (-0.15, 0.0, 1.01)),
+        (f0 + 24, (0.10, 0.05, 1.11), (0.02, 0.0, 1.01)),
+        (f0 + 48, (0.24, 0.05, 1.11), (0.18, 0.0, 1.01)),
+        (f0 + 72, (0.36, 0.05, 1.12), (0.32, 0.0, 1.01)),
+    ]
+    torch_kfs = []
+    for fr, wrist_pt, tip_pt in cut_frames:
+        gp = welder.reach(fr, "l", wrist_pt)
+        torch_kfs.append((fr, gp, tip_pt))
+    welder.work_motion("r", [
+        (f0, (-0.22, 0.06, 1.08)),
+        (f0 + 36, (-0.16, 0.05, 1.10)),
+        (f0 + 72, (-0.12, 0.06, 1.08)),
+    ])
+    animate_torch(b, "CuttingTorch", torch_kfs)
+    hand_end = torch_kfs[-1][1]
+    hose(b, "HoseOrange", [valve, (-1.2, -0.7, 0.35), (-0.3, -0.4, 0.55), tuple(hand_end)],
          M("hose_orange"), 0.03, reveal=(f0, f0 + 20))
 
-    sparks(b, M("spark"), lambda fr: (0.2, 0.0, 1.05), f0, f1, 60, random.Random(11), spread=1.3, lift=1.4)
+    def cut_tip_at(fr):
+        u = max(0.0, min(1.0, (fr - f0) / 72.0))
+        return (-0.15 + 0.47 * u, 0.0, 1.03)
+
+    sparks(b, M("spark"), cut_tip_at, f0 + 4, f0 + 78, 65, random.Random(11), spread=1.3, lift=1.4)
     welder.thumbs_up(b.f1 - 36, b.f1, side="r")
     _celebrate(welder, b)
-    b.light("CutGlow", "POINT", (0.2, -0.1, 1.3), (1.0, 0.6, 0.25), 60.0, size=0.6)
+    glow = b.light("CutGlow", "POINT", (0.1, -0.1, 1.3), (1.0, 0.6, 0.25), 65.0, size=0.6)
+    key(glow, f0, location=(-0.1, -0.1, 1.25))
+    key(glow, f0 + 72, location=(0.3, -0.1, 1.25))
     b.light("BenchFill", "AREA", (0.0, -2.0, 3.0), (1.0, 0.9, 0.8), 350.0, size=3.0, target=(0, 0.5, 0.8))
     b.overlay(shot, title_size=0.13)
 
@@ -737,10 +921,10 @@ def stage_oxyacetylene(b, shot):
     b.obj("SeamPipe", pipe_geom, M("pipe_silver"), loc=(0.0, 0.0, 1.05), rot=(0, PI / 2, 0), smooth=True)
     for x in (-1.0, 1.0):
         b.obj("PipeStand", G.box(0.2, 0.4, 0.9), M("dark_steel"), loc=(x, 0.0, 0.45))
-    seam = b.obj("WeldBead", G.box(1.8, 0.05, 0.03, origin="left"), M("glow_orange"),
-                 loc=(-0.9, 0.0, 1.2), scale=(0.01, 1, 1))
+    seam = b.obj("WeldBead", G.box(0.85, 0.05, 0.03, origin="left"), M("glow_orange"),
+                 loc=(-0.35, 0.0, 1.2), scale=(0.01, 1, 1))
     key(seam, f0 + 6, scale=(0.01, 1, 1))
-    key(seam, f1 - 20, scale=(1.0, 1, 1))
+    key(seam, f0 + 74, scale=(1.0, 1, 1))
 
     red = gas_cylinder(b, "CylRed", (-1.95, -0.9, 0.2), M("cyl_red"), M("band_white"))
     blue = gas_cylinder(b, "CylBlue", (-1.5, -0.9, 0.2), M("cyl_blue"), M("band_white"))
@@ -749,31 +933,57 @@ def stage_oxyacetylene(b, shot):
     welder = R.Person(b, "OxyWelder", "jill", (0.1, 0.42, 0.0), 0.0,
                       outfit("skin_deep", "leather", apron="leather", hands="leather"), f0=f0)
     welder.hat("helmet", M("black"))
-    welder.visor(M("visor"))
+    welder.visor(M("visor"), flip_frame=f1 - 38)
     welder.breathe(f0, f1)
-    hand = welder.reach(f0, "l", (0.25, 0.05, 1.22))    # torch hand
-    welder.reach(f0, "r", (-0.05, 0.05, 1.22))
-    tip = Vector((0.25, 0.0, 1.24))
-    torch(b, "OxyTorch", tuple(hand), tuple(tip))
-    oxy_flame = flame(b, "OxyFlame", tuple(tip), (0.25, -0.1, 1.22), M("glow_blue"), radius=0.03)
-    flicker(oxy_flame, f0, f1, (1, 1, 1), 0.15, random.Random(3))
-    b.light("FlameGlow", "POINT", (0.3, -0.1, 1.3), (0.45, 0.7, 1.0), 80.0, size=0.5)
 
+    # Track the welding torch along the pipe seam in lockstep with WeldBead
+    weld_frames = [
+        (f0, (-0.18, 0.06, 1.23), (-0.30, 0.0, 1.22)),
+        (f0 + 25, (0.02, 0.06, 1.23), (-0.06, 0.0, 1.22)),
+        (f0 + 50, (0.20, 0.06, 1.23), (0.18, 0.0, 1.22)),
+        (f0 + 74, (0.36, 0.06, 1.23), (0.42, 0.0, 1.22)),
+    ]
+    torch_kfs = []
+    for fr, wrist_pt, tip_pt in weld_frames:
+        gp = welder.reach(fr, "l", wrist_pt)
+        torch_kfs.append((fr, gp, tip_pt))
+    welder.work_motion("r", [
+        (f0, (-0.25, 0.05, 1.20)),
+        (f0 + 38, (-0.12, 0.05, 1.22)),
+        (f0 + 74, (-0.04, 0.05, 1.21)),
+    ])
+    animate_torch(b, "OxyTorch", torch_kfs)
+    oxy_flame = flame(b, "OxyFlame", (-0.30, 0.0, 1.22), (-0.30, -0.1, 1.20), M("glow_blue"), radius=0.03)
+    for fr, _gp, tip_pt in torch_kfs:
+        key(oxy_flame, fr, location=tip_pt)
+    flicker(oxy_flame, f0, f0 + 78, (1, 1, 1), 0.15, random.Random(3))
+    key(oxy_flame, f0 + 80, scale=(0.01, 0.01, 0.01))
+
+    fglow = b.light("FlameGlow", "POINT", (0.1, -0.1, 1.3), (0.45, 0.7, 1.0), 85.0, size=0.5)
+    key(fglow, f0, location=(-0.25, -0.1, 1.3))
+    key(fglow, f0 + 74, location=(0.38, -0.1, 1.3))
+
+    hand_end = torch_kfs[-1][1]
     # Two hoses: red (fuel) from the acetylene valve, blue (oxygen) from the oxygen valve
-    hose(b, "HoseRed", [red, (-1.2, -0.6, 0.25), (-0.4, -0.2, 0.5), tuple(hand)], M("hose_red"), 0.025,
+    hose(b, "HoseRed", [red, (-1.2, -0.6, 0.25), (-0.4, -0.2, 0.5), tuple(hand_end)], M("hose_red"), 0.025,
          reveal=(f0, f0 + 20))
-    hose(b, "HoseBlue", [blue, (-1.1, -0.6, 0.25), (-0.3, -0.2, 0.45), (0.05, -0.05, 0.95), tuple(hand)],
+    hose(b, "HoseBlue", [blue, (-1.1, -0.6, 0.25), (-0.3, -0.2, 0.45), (0.05, -0.05, 0.95), tuple(hand_end)],
          M("hose_blue"), 0.025, reveal=(f0 + 4, f0 + 24))
     welder.thumbs_up(b.f1 - 36, b.f1, side="r")
     _celebrate(welder, b)
-    sparks(b, M("spark"), lambda fr: (0.25, 0.0, 1.22), f0, f1, 20, random.Random(5), spread=0.7, lift=0.8)
+
+    def oxy_tip_at(fr):
+        u = max(0.0, min(1.0, (fr - f0) / 74.0))
+        return (-0.30 + 0.72 * u, 0.0, 1.22)
+
+    sparks(b, M("spark"), oxy_tip_at, f0 + 6, f0 + 78, 28, random.Random(5), spread=0.7, lift=0.8)
     b.light("BenchFill", "AREA", (0.0, -2.0, 3.0), (1.0, 0.92, 0.85), 300.0, size=3.0, target=(0, 0.5, 0.8))
     b.overlay(shot, title_size=0.13)
 
 
 def stage_domestic(b, shot):
     f0, f1 = b.f0, b.f1
-    b.camera(start=(2.2, -3.4, 1.7), end=(1.8, -3.0, 1.7), target=(-0.4, 1.4, 1.0), lens=40)
+    b.camera(start=(2.2, -3.4, 1.7), end=(1.8, -3.0, 1.7), target=(-0.2, 1.4, 1.0), lens=40)
     b.world((0.28, 0.27, 0.25))
     b.floor(M("wood"))
     b.obj("KitchenWall", G.box(12, 0.3, 4.5), M("tile"), loc=(0, 2.6, 2.25))
@@ -788,26 +998,41 @@ def stage_domestic(b, shot):
         fl = flame(b, f"StoveFlame{i}", (bx, by, stove_top + 0.03), (bx, by, stove_top + 0.16), M("glow_blue"),
                    radius=0.035)
         flicker(fl, f0, f1, (1, 1, 1), 0.2, random.Random(20 + i))
-    b.obj("Pot", G.cylinder(0.13, 0.14, 16), M("stainless"), loc=(-0.2, 1.35, stove_top + 0.02), smooth=True)
-    b.obj("PotLid", G.cylinder(0.14, 0.02, 16), M("stainless"), loc=(-0.2, 1.35, stove_top + 0.16), smooth=True)
+    b.obj("Pot", G.cylinder(0.13, 0.14, 16), M("stainless"), loc=(0.2, 1.35, stove_top + 0.02), smooth=True)
+    puffs(b, M("steam"), (0.2, 1.35, stove_top + 0.18), f0, f1, 5, random.Random(25), rise=0.65, radius=0.08)
 
     valve = gas_cylinder(b, "CylKitchen", (-2.1, 1.75, 0.2), M("cyl_grey"), M("band_white"))
     trolley(b, "CylStand", (-2.1, 1.75, 0.0), width=0.5)
-    inlet = (-0.6, 1.55, 1.0)
+    inlet = (-0.46, 1.55, 1.0)
     b.obj("StoveInlet", G.cylinder(0.03, 0.12, 10), M("brass"), loc=(-0.46, 1.55, 1.0),
           rot=(0, -PI / 2, 0), smooth=True)
     hose(b, "HoseKitchen", [valve, (-1.85, 1.75, 1.0), (-1.1, 1.7, 1.0), inlet],
          M("hose_orange"), 0.03, reveal=(f0, f0 + 24))
 
-    cook = R.Person(b, "Cook", "jill", (1.0, 2.25, 0.0), 0.0,
+    cook = R.Person(b, "Cook", "jill", (0.65, 2.02, 0.0), 0.0,
                     outfit("skin_deep", "grey_shirt", trousers="navy", apron="apron_red"), f0=f0)
     cook.breathe(f0, f1)
-    cook.reach(f0, "r", (0.9, 1.95, 1.05))
-    cook.reach(f0, "l", (1.2, 1.95, 1.0))
+    # Stirring motion over the simmering pot before transitioning to the thumbs-up
+    stir_kfs = [
+        (f0, (0.36, 1.58, 1.24), (0.20, 1.35, 1.15)),
+        (f0 + 22, (0.42, 1.62, 1.25), (0.24, 1.38, 1.15)),
+        (f0 + 44, (0.34, 1.60, 1.24), (0.17, 1.33, 1.15)),
+        (f0 + 66, (0.40, 1.58, 1.24), (0.21, 1.36, 1.15)),
+    ]
+    spoon_kfs = []
+    for fr, wrist_pt, tip_pt in stir_kfs:
+        gp = cook.reach(fr, "r", wrist_pt)
+        spoon_kfs.append((fr, gp, tip_pt))
+    cook.work_motion("l", [
+        (f0, (0.85, 1.72, 1.02)),
+        (f0 + 36, (0.82, 1.68, 1.05)),
+        (f0 + 68, (0.85, 1.72, 1.02)),
+    ])
+    animate_torch(b, "StirSpoon", spoon_kfs, body_mat=M("stainless"), hide_at=f1 - 48)
     cook.thumbs_up(b.f1 - 36, b.f1, side="r")
     _celebrate(cook, b)
     b.light("KitchenLight", "AREA", (0.0, -0.5, 3.0), (1.0, 0.92, 0.8), 500.0, size=3.0, target=(0, 1.2, 0.8))
-    b.light("StoveGlow", "POINT", (-0.2, 1.4, 1.2), (0.45, 0.7, 1.0), 40.0, size=0.6)
+    b.light("StoveGlow", "POINT", (0.0, 1.4, 1.25), (0.45, 0.7, 1.0), 45.0, size=0.6)
     b.overlay(shot, title_size=0.13)
 
 
@@ -835,7 +1060,7 @@ def stage_commercial(b, shot):
     wall_outlet = (-2.7, 2.3, 0.9)
     b.obj("WallOutlet", G.cylinder(0.05, 0.2, 10), M("brass"), loc=(-2.7, 2.55, 0.9), rot=(PI / 2, 0, 0))
     b.obj("RangeInlet", G.cylinder(0.04, 0.12, 10), M("brass"), loc=(-1.5, 1.9, 0.3), rot=(0, -PI / 2, 0))
-    hose(b, "HoseRange", [wall_outlet, (-2.2, 1.2, 0.12), (-1.8, 1.25, 0.12), (-1.62, 1.9, 0.3)],
+    hose(b, "HoseRange", [wall_outlet, (-2.2, 1.2, 0.12), (-1.8, 1.25, 0.12), (-1.54, 1.9, 0.3)],
          M("hose_orange"), 0.03, reveal=(f0, f0 + 24))
 
     # Pass counter between the chef and the camera
@@ -847,8 +1072,23 @@ def stage_commercial(b, shot):
                     outfit("skin_mid", "chef_white", trousers="navy", apron="black"), f0=f0)
     chef.hat("toque", M("chef_white"))
     chef.breathe(f0, f1)
-    chef.reach(f0, "r", (0.3, -0.1, 1.07))
-    chef.reach(f0, "l", (0.9, -0.1, 1.07))
+    # Chef works the pass/griddle with a spatula before giving the thumbs-up
+    spatula_frames = [
+        (f0, (0.28, -0.06, 1.12), (0.12, -0.22, 1.04)),
+        (f0 + 24, (0.42, -0.05, 1.14), (0.30, -0.20, 1.05)),
+        (f0 + 48, (0.24, -0.06, 1.12), (0.10, -0.22, 1.04)),
+        (f0 + 68, (0.36, -0.06, 1.13), (0.22, -0.21, 1.04)),
+    ]
+    spat_kfs = []
+    for fr, wrist_pt, tip_pt in spatula_frames:
+        gp = chef.reach(fr, "r", wrist_pt)
+        spat_kfs.append((fr, gp, tip_pt))
+    chef.work_motion("l", [
+        (f0, (0.88, -0.08, 1.07)),
+        (f0 + 34, (0.82, -0.12, 1.10)),
+        (f0 + 68, (0.88, -0.08, 1.07)),
+    ])
+    animate_torch(b, "ChefSpatula", spat_kfs, body_mat=M("stainless"), hide_at=f1 - 48)
     chef.thumbs_up(b.f1 - 36, b.f1, side="r")
     _celebrate(chef, b)
     b.light("PassLight", "AREA", (0.0, -1.0, 3.2), (1.0, 0.95, 0.85), 450.0, size=3.0, target=(0, 1.5, 0.9))
@@ -858,7 +1098,7 @@ def stage_commercial(b, shot):
 def stage_outdoor(b, shot):
     f0, f1 = b.f0, b.f1
     b.camera(start=(-0.6, -7.2, 2.0), end=(-0.1, -6.4, 2.0), target=(0.0, 1.0, 1.1), lens=35)
-    b.world((0.45, 0.62, 0.9))
+    b.world((0.45, 0.62, 0.9), sun_energy=2.6)
     b.floor(M("grass"), size=80)
     tree(b, "TreeA", (-3.8, 4.5, 0.0), height=2.4, crown=1.2)
     tree(b, "TreeB", (3.5, 5.0, 0.0), height=2.0, crown=1.0)
@@ -876,10 +1116,11 @@ def stage_outdoor(b, shot):
     for i, x in enumerate((0.1, 0.3, 0.5)):
         fl = flame(b, f"GrillFire{i}", (x, 0.6, 0.55), (x, 0.6, 0.85), M("glow_orange"), radius=0.05)
         flicker(fl, f0, f1, (1, 1, 1), 0.25, random.Random(60 + i))
+    puffs(b, M("steam"), (0.3, 0.6, 1.02), f0, f1, 4, random.Random(65), rise=0.8, radius=0.09)
 
     # Propane cylinder and red hose to the grill
     valve = gas_cylinder(b, "Propane", (-1.3, 0.6, 0.0), M("cyl_grey"), M("band_white"), h=0.8, r=0.14)
-    hose(b, "HoseGrill", [valve, (-0.9, 0.2, 0.15), (-0.45, 0.1, 0.2), (-0.08, 0.6, 0.6)],
+    hose(b, "HoseGrill", [valve, (-0.9, 0.2, 0.15), (-0.45, 0.1, 0.2), (-0.06, 0.6, 0.6)],
          M("hose_red"), 0.025, reveal=(f0, f0 + 24))
     # Small generator and camp stove
     b.obj("Generator", G.box(0.7, 0.45, 0.5), M("dark_steel"), loc=(2.6, -0.4, 0.25), bevel=0.02)
@@ -888,14 +1129,32 @@ def stage_outdoor(b, shot):
     camper_a = R.Person(b, "CamperA", "jack", (-0.6, -0.2, 0.0), 0.0,
                         outfit("skin_mid", "hi_vis", trousers="navy", sleeves="hi_vis"), f0=f0)
     camper_a.breathe(f0, f1)
-    camper_a.reach(f0, "l", (-0.3, -0.55, 1.15))
-    camper_a.reach(f0, "r", (-0.75, -0.55, 1.1))
+    camper_a.work_motion("l", [
+        (f0, (-0.22, -0.45, 1.14)),
+        (f0 + 24, (-0.12, -0.35, 1.18)),
+        (f0 + 48, (-0.25, -0.45, 1.14)),
+        (f0 + 68, (-0.16, -0.38, 1.16)),
+    ])
+    camper_a.work_motion("r", [
+        (f0, (-0.78, -0.52, 1.08)),
+        (f0 + 36, (-0.72, -0.55, 1.12)),
+        (f0 + 68, (-0.78, -0.52, 1.08)),
+    ])
     camper_b = R.Person(b, "CamperB", "jill", (1.5, -0.2, 0.0), 0.0,
                         outfit("skin_deep", "overalls", trousers="overalls", sleeves="grey_shirt"), f0=f0)
     camper_b.hat("straw", M("straw"))
     camper_b.breathe(f0, f1)
-    camper_b.reach(f0, "r", (1.2, -0.55, 1.1))
-    camper_b.reach(f0, "l", (1.7, -0.55, 1.05))
+    camper_b.work_motion("r", [
+        (f0, (1.18, -0.52, 1.10)),
+        (f0 + 26, (1.08, -0.42, 1.16)),
+        (f0 + 52, (1.20, -0.50, 1.10)),
+        (f0 + 68, (1.15, -0.48, 1.12)),
+    ])
+    camper_b.work_motion("l", [
+        (f0, (1.72, -0.52, 1.05)),
+        (f0 + 36, (1.68, -0.56, 1.09)),
+        (f0 + 68, (1.72, -0.52, 1.05)),
+    ])
 
     camper_a.thumbs_up(b.f1 - 36, b.f1, side="r")
     _celebrate(camper_a, b)
@@ -908,7 +1167,7 @@ def stage_outdoor(b, shot):
 def stage_agriculture(b, shot):
     f0, f1 = b.f0, b.f1
     b.camera(start=(-0.6, -6.0, 1.8), end=(-0.1, -5.2, 1.8), target=(0.2, 0.9, 1.2), lens=38)
-    b.world((0.2, 0.2, 0.18))
+    b.world((0.2, 0.2, 0.18), sun_energy=1.8)
     b.floor(M("straw_floor"))
     b.obj("BarnBack", G.box(14, 0.3, 4.5), M("barn_wood"), loc=(0, 3.0, 2.25))
     b.obj("BarnSide", G.box(0.3, 14, 4.5), M("barn_wood"), loc=(-3.2, 2.0, 2.25))
@@ -951,8 +1210,17 @@ def stage_agriculture(b, shot):
                       f0=f0)
     farmer.hat("straw", M("straw"))
     farmer.breathe(f0, f1)
-    farmer.reach(f0, "r", (0.95, -0.5, 1.1))
-    farmer.reach(f0, "l", (1.35, -0.5, 1.1))
+    farmer.work_motion("r", [
+        (f0, (0.92, -0.48, 1.12)),
+        (f0 + 24, (0.78, -0.35, 1.26)),
+        (f0 + 48, (0.88, -0.42, 1.18)),
+        (f0 + 68, (0.94, -0.48, 1.12)),
+    ])
+    farmer.work_motion("l", [
+        (f0, (1.38, -0.52, 1.06)),
+        (f0 + 36, (1.34, -0.48, 1.12)),
+        (f0 + 68, (1.38, -0.52, 1.06)),
+    ])
     farmer.thumbs_up(b.f1 - 36, b.f1, side="r")
     _celebrate(farmer, b)
     b.light("BarnSun", "AREA", (0.0, -2.0, 3.6), (1.0, 0.85, 0.65), 380.0, size=4.0, target=(0, 1, 0.8))
@@ -971,7 +1239,6 @@ def stage_manufacturing(b, shot):
     for x in (-2.8, 2.8):
         for y in (0.2, 0.8):
             b.obj("ConvLeg", G.box(0.1, 0.1, 0.9), M("steel"), loc=(x, y, 0.45))
-    rng = random.Random(90)
     for i in range(5):
         start_x = -3.2 + i * 1.3
         box = b.obj("Crate", G.box(0.4, 0.35, 0.3), M("cardboard"), loc=(start_x, 0.5, 1.12), bevel=0.01)
@@ -987,15 +1254,32 @@ def stage_manufacturing(b, shot):
     b.obj("AirDrop", G.cylinder(0.04, 1.2, 12), M("pipe_silver"), loc=(-0.9, 2.4, 1.4), smooth=True)
     outlet = (-0.9, 2.4, 1.4)
 
-    worker = R.Person(b, "Worker", "jill", (0.6, 0.88, 0.0), 0.0,
+    # Worker stands behind the conveyor belt so moving crates never clip her hands
+    worker = R.Person(b, "Worker", "jill", (0.6, 1.02, 0.0), 0.0,
                       outfit("skin_mid", "hi_vis", trousers="navy", sleeves="grey_shirt", hands="leather"), f0=f0)
     worker.hat("hardhat", M("hardhat"))
     worker.breathe(f0, f1)
-    hand = worker.reach(f0, "r", (0.4, 0.5, 1.04))     # air tool hand
-    worker.reach(f0, "l", (0.8, 0.5, 1.04))
-    tool_tip = hand + (Vector((0.4, 0.3, 1.0)) - hand).normalized() * 0.4
-    torch(b, "AirTool", tuple(hand), tuple(tool_tip), body_mat=M("steel"))
-    hose(b, "HoseAir", [outlet, (-0.7, 1.5, 1.6), (-0.1, 0.5, 1.7), tuple(hand)], M("hose_blue"), 0.025,
+
+    # Rhythmic pneumatic tool actuations over the passing crates
+    tool_frames = [
+        (f0, (0.42, 0.68, 1.36), (0.42, 0.52, 1.28)),
+        (f0 + 18, (0.42, 0.66, 1.28), (0.42, 0.50, 1.18)),
+        (f0 + 36, (0.42, 0.68, 1.36), (0.42, 0.52, 1.28)),
+        (f0 + 54, (0.42, 0.66, 1.28), (0.42, 0.50, 1.18)),
+        (f0 + 72, (0.42, 0.68, 1.34), (0.42, 0.52, 1.26)),
+    ]
+    air_kfs = []
+    for fr, wrist_pt, tip_pt in tool_frames:
+        gp = worker.reach(fr, "r", wrist_pt)
+        air_kfs.append((fr, gp, tip_pt))
+    worker.work_motion("l", [
+        (f0, (0.82, 0.72, 1.16)),
+        (f0 + 36, (0.78, 0.70, 1.20)),
+        (f0 + 70, (0.82, 0.72, 1.16)),
+    ])
+    animate_torch(b, "AirTool", air_kfs, body_mat=M("steel"))
+    hand0 = air_kfs[0][1]
+    hose(b, "HoseAir", [outlet, (-0.7, 1.5, 1.6), (-0.1, 0.75, 1.7), tuple(hand0)], M("hose_blue"), 0.025,
          reveal=(f0, f0 + 24))
     worker.thumbs_up(b.f1 - 36, b.f1, side="l")
     _celebrate(worker, b)
@@ -1006,30 +1290,47 @@ def stage_manufacturing(b, shot):
 def stage_outro(b, shot):
     f0, f1 = b.f0, b.f1
     b.camera(start=(0.0, -7.2, 2.0), end=(0.0, -6.4, 2.0), target=(0.0, 0.0, 1.9), drop=0.0)
-    b.world((0.015, 0.015, 0.02))
+    b.world((0.015, 0.015, 0.02), sun_energy=0.0)
     b.floor(M("dark_steel"))
-    b.light("KeyTop", "AREA", (0, -1.0, 6.0), (1.0, 0.95, 0.9), 800.0, size=4.0, target=(0, 0, 0))
-    # The hose from the intro loops into a circle
+    b.light("KeyTop", "AREA", (0, -1.0, 6.0), (1.0, 0.95, 0.9), 850.0, size=4.0, target=(0, 0, 0))
+    b.light("RimAccent", "AREA", (3.5, 2.5, 3.2), (1.0, 0.45, 0.2), 420.0, size=3.0, target=(0, 0, 2.0))
+    # The hose from the intro coils into a clean circular emblem framing the three product hoses
     pts = []
     for i in range(8):
         a = 2 * PI * i / 8
         pts.append((0.0 + 0.85 * math.cos(a), 0.0, 2.05 + 0.85 * math.sin(a)))
-    ring = hose(b, "HoseLoop", pts, M("hose_orange"), 0.035, reveal=(f0, f0 + 36))
+    ring = hose(b, "HoseLoop", pts, M("hose_orange"), 0.038, reveal=(f0, f0 + 36), fittings=False)
     ring.data.splines[0].use_cyclic_u = True
-    # Small wordmark above the loop
+    # Trio of red, blue, and orange 3-layer reinforced hose tips inside the emblem (matching all-products.jpg)
+    for idx, (hx, hmat, hrad) in enumerate((
+        (-0.22, M("hose_red"), 0.044),
+        (0.0, M("hose_blue"), 0.044),
+        (0.24, M("hose_orange"), 0.052),
+    )):
+        b.segment(f"OutroHeroStub_{idx}", (hx - 0.12, 0.35, 2.22), (hx, -0.15, 1.92), hrad, hmat)
+        hose_end_cap(b, f"OutroHeroCap_{idx}", loc=(hx, -0.15, 1.92), direction=(0.22, -0.92, -0.32),
+                     outer_mat=hmat, radius=hrad, pop_in=f0 + 20 + idx * 5)
+
+    # Wordmark above the loop, flanked by subtle glowing accent rules
     cu = bpy.data.curves.new("OutroWordmark", "FONT")
     cu.body = "RhyolitePrime"
     cu.align_x = "CENTER"
     cu.align_y = "CENTER"
+    cu.extrude = 0.03
+    cu.bevel_depth = 0.005
+    font = _get_font()
+    if font is not None:
+        cu.font = font
     cu.materials.append(M("wordmark_outro"))
-    cu.size = 0.35
+    cu.size = 0.36
     wm = bpy.data.objects.new("OutroWordmark", cu)
     wm.rotation_euler = (PI / 2, 0, 0)
     wm.location = (0, 0.0, 3.1)
     b.link(wm)
-    key(wm, f0 + 30, scale=(0.01, 0.01, 0.01))
-    key(wm, f0 + 50, scale=(1, 1, 1))
-    b.overlay(shot, stagger=14, title_size=0.13)
+    key(wm, f0 + 24, scale=(0.01, 0.01, 0.01))
+    key(wm, f0 + 44, scale=(1, 1, 1))
+    # Hold the three commitments and WhatsApp / Call / Email CTA right to the final frame (1080)
+    b.overlay(shot, stagger=12, title_size=0.13, hold_end=True)
 
 
 STAGE_BUILDERS = [
@@ -1045,12 +1346,58 @@ STAGE_BUILDERS = [
 ]
 
 
+def setup_world_nodes(world):
+    """Build a vertical ground-to-zenith gradient in `AdWorld` so metals reflect a horizon."""
+    nt = world.node_tree
+    nt.nodes.clear()
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    mix = nt.nodes.new("ShaderNodeMixRGB")
+    mix.name = "WorldGradientMix"
+    mix.inputs[1].default_value = (0.01, 0.01, 0.015, 1.0)
+    mix.inputs[2].default_value = (0.04, 0.04, 0.06, 1.0)
+    bg = nt.nodes.new("ShaderNodeBackground")
+    bg.name = "Background"
+    out = nt.nodes.new("ShaderNodeOutputWorld")
+    nt.links.new(tc.outputs["Generated"], sep.inputs["Vector"])
+    nt.links.new(sep.outputs["Z"], mix.inputs[0])
+    nt.links.new(mix.outputs["Color"], bg.inputs["Color"])
+    nt.links.new(bg.outputs["Background"], out.inputs["Surface"])
+
+
+def setup_compositor(scene):
+    """Enable a subtle Fog Glow bloom in the Blender compositor for sparks, flames, and wordmarks."""
+    try:
+        scene.use_nodes = True
+    except Exception:
+        pass
+    try:
+        if hasattr(scene, "compositing_node_group"):
+            tree = bpy.data.node_groups.new("AdCompositor", "CompositorNodeTree")
+            scene.compositing_node_group = tree
+            tree.interface.new_socket("Image", in_out="OUTPUT", socket_type="NodeSocketColor")
+            rl = tree.nodes.new("CompositorNodeRLayers")
+            glare = tree.nodes.new("CompositorNodeGlare")
+            out = tree.nodes.new("NodeGroupOutput")
+            if "Type" in glare.inputs:
+                glare.inputs["Type"].default_value = "Fog Glow"
+            if "Threshold" in glare.inputs:
+                glare.inputs["Threshold"].default_value = 1.6
+            if "Strength" in glare.inputs:
+                glare.inputs["Strength"].default_value = 0.32
+            tree.links.new(rl.outputs["Image"], glare.inputs["Image"])
+            tree.links.new(glare.outputs["Image"], out.inputs["Image"])
+    except Exception as exc:
+        print("[advert] compositor glare skipped:", exc)
+
+
 def build_scene(scene):
     """Populate the current scene with all nine stages. Returns the number of stages built."""
     assert len(STAGE_BUILDERS) == len(S.SHOTS), "every shot needs a builder"
-    # global lighting shared by all stages
+    _MATS.clear()
+    # Global directional light whose energy is keyframed per stage (0 in dark studio stages)
     sun = bpy.data.lights.new("Sun", "SUN")
-    sun.energy = 2.6
+    sun.energy = 0.0
     sun.color = (1.0, 0.95, 0.9)
     sun.angle = math.radians(3.0)
     sun_obj = bpy.data.objects.new("Sun", sun)
@@ -1059,14 +1406,16 @@ def build_scene(scene):
 
     world = bpy.data.worlds.new("AdWorld")
     world.use_nodes = True
+    setup_world_nodes(world)
     scene.world = world
 
-    b = Builder(scene)
+    b = Builder(scene, sun_data=sun)
     for i, (shot, fn) in enumerate(zip(S.SHOTS, STAGE_BUILDERS)):
         b.begin(i, shot)
         fn(b, shot)
         b.finish()
         print(f"[advert] stage {i + 1}/{len(S.SHOTS)} built: {shot['id']} ({len(b.objs)} objects)")
 
-    scene.camera = bpy.data.objects[f"Cam01"]
+    setup_compositor(scene)
+    scene.camera = bpy.data.objects["Cam01"]
     return len(S.SHOTS)
