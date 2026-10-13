@@ -46,7 +46,7 @@ SHOTS = [
             "with a cutting torch. Sparks spray across the frame. An orange hose runs from a "
             "gas cylinder on a trolley to the torch."
         ),
-        "characters": "Welder in a visor helmet, leather jacket, apron and gloves. Ends with a thumbs-up.",
+        "characters": "African welder in a visor helmet, leather jacket, apron and gloves. Ends with a thumbs-up, a smile and a green check mark.",
         "music": "Bass and clap drive in; sparks are synced to the hi-hats.",
     },
     {
@@ -60,7 +60,7 @@ SHOTS = [
             "hoses run to a welding torch. The welder lights a bright flame and runs a bead along "
             "a pipe seam, and the glow flickers."
         ),
-        "characters": "Welder in a visor helmet, leather jacket, apron and gloves. Ends with a thumbs-up.",
+        "characters": "African welder in a visor helmet, leather jacket, apron and gloves. Ends with a thumbs-up, a smile and a green check mark.",
         "music": "Arpeggio lead enters over the progression.",
     },
     {
@@ -73,7 +73,7 @@ SHOTS = [
             "Bright home kitchen. A cook in an apron lights a four-burner stove. An orange hose runs "
             "from a cylinder behind the cabinet to the stove inlet. Blue burner flames glow under a pot."
         ),
-        "characters": "Home cook in an apron. Ends with a thumbs-up.",
+        "characters": "African home cook in an apron. Ends with a thumbs-up, a smile and a green check mark.",
         "music": "Warm, lighter section with a soft hi-hat pattern.",
     },
     {
@@ -86,7 +86,7 @@ SHOTS = [
             "Busy restaurant kitchen. A chef works a range with a griddle and a deep fryer under an "
             "extraction hood. Steam rises while an orange hose feeds the range from the wall."
         ),
-        "characters": "Chef in a white jacket and toque. Ends with a thumbs-up.",
+        "characters": "African chef in a white jacket, toque and apron. Ends with a thumbs-up, a smile and a green check mark.",
         "music": "Full groove with a bright lead.",
     },
     {
@@ -99,7 +99,7 @@ SHOTS = [
             "Campsite at golden hour, with pine trees and a tent. Two campers cook on a portable gas "
             "grill fed by a red hose from a propane cylinder. A small generator and camp stove sit nearby."
         ),
-        "characters": "Two campers by the grill: hi-vis jacket and cap, overalls and a straw hat. Ends with a thumbs-up.",
+        "characters": "Two African campers by the grill: one in a hi-vis jacket, one in overalls and a straw hat. Ends with a thumbs-up, a smile and a green check mark.",
         "music": "Tempo steady, with a higher melody over the chords.",
     },
     {
@@ -113,7 +113,7 @@ SHOTS = [
             "chicks. An orange hose runs through the wall from an outside cylinder. A crop dryer "
             "burner glows in the next bay."
         ),
-        "characters": "Farmer in a straw hat, overalls and leather gloves, with chicks. Ends with a thumbs-up.",
+        "characters": "African farmer in a straw hat, overalls and leather gloves, with chicks. Ends with a thumbs-up, a smile and a green check mark.",
         "music": "Mellow arrangement with a gentle bass line.",
     },
     {
@@ -126,7 +126,7 @@ SHOTS = [
             "Factory floor. Boxes move along a conveyor past a furnace. A worker in a hard hat uses a "
             "pneumatic tool, and a blue 5/16 inch hose carries compressed air from an overhead pipe rack."
         ),
-        "characters": "Factory worker in a hard hat, hi-vis vest and gloves. Ends with a thumbs-up.",
+        "characters": "African factory worker in a hard hat, hi-vis vest and gloves. Ends with a thumbs-up, a smile and a green check mark.",
         "music": "Driving rhythm with a rising filter.",
     },
     {

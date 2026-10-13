@@ -15,7 +15,8 @@ Coordinate conventions
 ----------------------
 * 1 unit = 1 metre. Z is up. Floor is z = 0.
 * Characters face -Y when their yaw is 0. yaw = pi faces +Y.
-* Arm joints rotate about X. A negative shoulder angle swings the arm forward (-Y).
+* Characters are rigged (rig_characters.py). Wrist targets are figure-local metres, given to
+  `Person.reach`. Character 'r' is the character's right hand (-X when facing -Y).
 """
 
 import math
@@ -26,6 +27,7 @@ import bpy
 from mathutils import Matrix, Vector
 
 import geometry as G
+import rig_characters as R
 import shots as S
 
 FRAMES = int(round(S.SHOT_SECONDS * S.FPS))  # 120
@@ -71,9 +73,10 @@ MATERIAL_DEFS = {
     "dark_steel": dict(color=(0.08, 0.08, 0.09), rough=0.4, metal=0.6),
     "wood": dict(color=(0.42, 0.26, 0.13), rough=0.6, bump=0.12, var=(0.55, 0.36, 0.2), tex_scale=12),
     "wood_dark": dict(color=(0.2, 0.12, 0.07), rough=0.7, bump=0.1, tex_scale=12),
-    "skin_light": dict(color=(0.42, 0.27, 0.19), rough=0.5, bump=0.04, tex_scale=150),
-    "skin_mid": dict(color=(0.3, 0.19, 0.13), rough=0.5, bump=0.04, tex_scale=150),
-    "skin_deep": dict(color=(0.2, 0.125, 0.085), rough=0.5, bump=0.04, tex_scale=150),
+    # Dark skin tones (sRGB hex, converted to linear). Subsurface is added in M() for names starting skin.
+    "skin_warm": dict(color=hex_rgb("#5e3822"), var=hex_rgb("#2b170f"), rough=0.5, bump=0.04, tex_scale=150),
+    "skin_mid": dict(color=hex_rgb("#4d2c1c"), var=hex_rgb("#26140c"), rough=0.5, bump=0.04, tex_scale=150),
+    "skin_deep": dict(color=hex_rgb("#3a2116"), var=hex_rgb("#1d0f08"), rough=0.5, bump=0.04, tex_scale=150),
     "hair_coily": dict(color=(0.02, 0.014, 0.011), rough=0.85, bump=0.35, tex_scale=90),
     "navy": dict(color=(0.08, 0.1, 0.22), rough=0.8, bump=0.06, tex_scale=120),
     "cap": dict(color=(0.2, 0.3, 0.5), rough=0.7, bump=0.06, tex_scale=120),
@@ -122,6 +125,7 @@ MATERIAL_DEFS = {
     "bar_accent": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=ACCENT, emit_strength=3.0),
     "brand_primary": dict(color=PRIMARY, rough=0.3, emit=PRIMARY, emit_strength=3.0),
     "bar_success": dict(color=(0.0, 0.0, 0.0), rough=1.0, emit=SUCCESS, emit_strength=3.0),
+    "check_green": dict(color=SUCCESS, rough=0.35, emit=SUCCESS, emit_strength=1.2),
 }
 
 _MATS = {}
@@ -451,172 +455,31 @@ class Builder:
 
 
 # ---------------------------------------------------------------------------
-# Characters
+# Characters: rigged figures (see rig_characters.py)
 # ---------------------------------------------------------------------------
 
-SIDE = {"r": -1.0, "l": 1.0}   # 'r' = character's right; at yaw 0 that is -X
-UPPER, FORE = 0.3, 0.3          # arm segment lengths used for IK
+def outfit(skin, torso, trousers=None, sleeves=None, shoes="black", hands=None, apron=None, hair="hair_coily"):
+    """Material slots for a rigged character. Names refer to MATERIAL_DEFS."""
+    m = {"skin": M(skin), "torso": M(torso)}
+    if trousers:
+        m["trousers"] = M(trousers)
+    if sleeves:
+        m["sleeves"] = M(sleeves)
+    if shoes:
+        m["shoes"] = M(shoes)
+    if hands:
+        m["hands"] = M(hands)
+    if apron:
+        m["apron"] = M(apron)
+    if hair:
+        m["hair"] = M(hair)
+    return m
 
 
-class Human:
-    """Stylised person built from primitives, with shoulder/elbow/hip/knee pivots."""
-
-    def __init__(self, b, name, loc, yaw, skin, top, bottom, shoe=None, hat=None, hat_style=None,
-                 apron=None, vest=None, visor=None, gloves=None, hair=True):
-        self.b = b
-        self.loc = Vector(loc)
-        self.yaw = yaw
-        root = self._part(name, None, loc=tuple(loc), rot=(0, 0, yaw))
-        self.root = root
-        self.j = {}
-        self.thumbs = {}
-        shoe = shoe or M("black")
-
-        self._part(name + "_torso", G.box(0.44, 0.26, 0.62), top, loc=(0, 0, 1.24), parent=root, bevel=0.03)
-        self._part(name + "_neck", G.cylinder(0.055, 0.2, 18, z0=0.0), skin, loc=(0, 0, 1.5), parent=root,
-              smooth=True)
-        self._part(name + "_head", G.sphere(0.13, 28, 18), skin, loc=(0, 0, 1.72), parent=root, smooth=True)
-        self._part(name + "_nose", G.sphere(0.022, 12, 8), skin, loc=(0, -0.135, 1.7), parent=root, smooth=True)
-        if apron is not None:
-            self._part(name + "_apron", G.box(0.36, 0.02, 0.5), apron, loc=(0, -0.14, 1.05), parent=root)
-        if vest is not None:
-            self._part(name + "_vest", G.box(0.47, 0.28, 0.5), vest, loc=(0, 0, 1.3), parent=root)
-        if visor is not None:
-            self._part(name + "_visor", G.box(0.2, 0.03, 0.09), visor, loc=(0, -0.14, 1.73), parent=root)
-        if hair and hat is None:
-            self._coily_hair(name)
-        self._hat(name, hat, hat_style)
-
-        for side, sx in SIDE.items():
-            sh = self._pivot(f"sh_{side}", (sx * 0.27, 0, 1.5), root, name)
-            self._part(f"{name}_ua_{side}", G.cylinder(0.065, UPPER, 18, z0=-UPPER), top, parent=sh, smooth=True)
-            el = self._pivot(f"el_{side}", (0, 0, -UPPER), sh, name)
-            self._part(f"{name}_fa_{side}", G.cylinder(0.058, FORE, 18, z0=-FORE), top, parent=el, smooth=True)
-            self._part(f"{name}_hand_{side}", G.sphere(0.065 if gloves else 0.06, 16, 10), gloves or skin,
-                  loc=(0, 0, -FORE - 0.02), parent=el, smooth=True)
-            # thumb: continues the forearm past the fist; hidden until thumbs_up() shows it
-            self.thumbs[side] = self._part(f"{name}_thumb_{side}", G.cylinder(0.02, 0.085, 14, z0=-0.11),
-                                           gloves or skin, loc=(0, 0, -FORE), parent=el, smooth=True)
-            hp = self._pivot(f"hp_{side}", (sx * 0.12, 0, 0.95), root, name)
-            self._part(f"{name}_th_{side}", G.cylinder(0.085, 0.46, 18, z0=-0.46), bottom, parent=hp, smooth=True)
-            kn = self._pivot(f"kn_{side}", (0, 0, -0.46), hp, name)
-            self._part(f"{name}_sh_{side}", G.cylinder(0.075, 0.42, 18, z0=-0.42), bottom, parent=kn, smooth=True)
-            self._part(f"{name}_ft_{side}", G.box(0.12, 0.27, 0.08), shoe, loc=(0, -0.06, -0.46), parent=kn)
-
-        self.inv = Matrix.Translation(self.loc) @ Matrix.Rotation(yaw, 4, "Z")
-        self.inv.invert()
-        self.to_world_m = self.inv.inverted()
-
-    def _coily_hair(self, name):
-        """Short, tightly curled hair: a cluster of small spheres over the crown of the head."""
-        n = 16
-        for i in range(n):
-            phi = 0.25 + 0.85 * math.sqrt((i + 0.5) / n)        # polar angle from the crown
-            a = i * 2.39996                                       # golden angle around the head
-            r = 0.125
-            pos = (r * math.sin(phi) * math.cos(a), r * math.sin(phi) * math.sin(a),
-                   1.72 + r * math.cos(phi))
-            self._part(f"{name}_curl{i}", G.sphere(0.047, 12, 8), M("hair_coily"), loc=pos,
-                       parent=self.root, smooth=True)
-
-    def _part(self, name, geom=None, mat=None, **kw):
-        """Body part: smooth shading and one level of subdivision for a finer silhouette."""
-        kw.setdefault("subdiv", 1)
-        kw.setdefault("smooth", True)
-        return self.b.obj(name, geom, mat, **kw)
-
-    def thumbs_up(self, f_start, f_end, side="r"):
-        """Raise one arm so the fist sits by the chest with the thumb up; hold until f_end.
-
-        The arm first holds its current pose, so it does not drift during the stage.
-        """
-        j_sh, j_el = self.j[f"sh_{side}"], self.j[f"el_{side}"]
-        key(j_sh, f_start - 14, rotation_euler=tuple(j_sh.rotation_euler))
-        key(j_el, f_start - 14, rotation_euler=tuple(j_el.rotation_euler))
-        # fist in front of the chest, elbow down, so the forearm (and thumb) points up
-        tgt = self.loc + Vector((SIDE[side] * 0.2, -0.21, 1.6))
-        a, e = self._ik(side, tgt)
-        self.pose(f_start, **{f"sh_{side}": (a, 0, 0), f"el_{side}": (e, 0, 0)})
-        self.pose(f_end, **{f"sh_{side}": (a, 0, 0), f"el_{side}": (e, 0, 0)})
-        th = self.thumbs[side]
-        key(th, f_start - 1, scale=(0.001, 0.001, 0.001))
-        key(th, f_start, scale=(1.0, 1.0, 1.0))
-
-    def _pivot(self, key_name, pos, parent, prefix):
-        p = self._part(f"{prefix}_{key_name}", None, loc=pos, parent=parent)
-        self.j[key_name] = p
-        return p
-
-    def _hat(self, name, mat, style):
-        b = self.b
-        if style == "helmet":
-            self._part(name + "_helmet", G.sphere(0.155, 28, 18), mat, loc=(0, 0.01, 1.74), parent=self.root, smooth=True)
-        elif style == "toque":
-            self._part(name + "_toque", G.cylinder(0.12, 0.2, 14, z0=1.85), mat, parent=self.root, smooth=True)
-            self._part(name + "_toque_top", G.sphere(0.14, 12, 8), mat, loc=(0, 0, 2.08), parent=self.root, smooth=True)
-        elif style == "hardhat":
-            self._part(name + "_hardhat", G.sphere(0.15, 14, 8, sz=0.62), mat, loc=(0, 0, 1.8), parent=self.root,
-                  smooth=True)
-        elif style == "straw":
-            self._part(name + "_brim", G.cylinder(0.27, 0.02, 20, z0=1.84), mat, parent=self.root, smooth=True)
-            self._part(name + "_crown", G.cylinder(0.14, 0.14, 14, z0=1.84), mat, parent=self.root, smooth=True)
-        elif style == "cap":
-            self._part(name + "_cap", G.sphere(0.14, 14, 8, sz=0.6), mat, loc=(0, 0, 1.8), parent=self.root, smooth=True)
-            self._part(name + "_peak", G.box(0.14, 0.12, 0.02), mat, loc=(0, -0.16, 1.78), parent=self.root)
-
-    # --- posing -------------------------------------------------------------
-    def pose(self, frame, **joints):
-        """Key joint rotations. Values are (x, y, z) tuples or a single x angle."""
-        for name, v in joints.items():
-            e = tuple(v) if isinstance(v, (tuple, list)) else (v, 0.0, 0.0)
-            key(self.j[name], frame, rotation_euler=e)
-
-    def rest(self, frame):
-        for side in SIDE:
-            self.pose(frame, **{f"sh_{side}": (0.05, 0, 0), f"el_{side}": (0, 0, 0),
-                                f"hp_{side}": (0, 0, 0), f"kn_{side}": (0, 0, 0)})
-
-    def reach(self, frame, side, world_target):
-        """Key the arm of `side` so the hand reaches `world_target`. Returns the hand's world position."""
-        a, e = self._ik(side, world_target)
-        self.pose(frame, **{f"sh_{side}": (a, 0, 0), f"el_{side}": (e, 0, 0)})
-        return self.hand_world(side, a, e)
-
-    def hand_world(self, side, a, e):
-        sx = SIDE[side] * 0.27
-        d1 = (0.0, math.sin(a), -math.cos(a))
-        d2 = (0.0, math.sin(a + e), -math.cos(a + e))
-        elbow = (sx, UPPER * d1[1], 1.5 + UPPER * d1[2])
-        hand = (sx, elbow[1] + FORE * d2[1], elbow[2] + FORE * d2[2])
-        return self.to_world_m @ Vector(hand)
-
-    def _ik(self, side, world_target):
-        tl = self.inv @ Vector(world_target)     # local space
-        uy = tl.y
-        uz = tl.z - 1.5
-        d = math.hypot(uy, uz)
-        d = min(max(d, 0.05), UPPER + FORE - 0.01)
-        cos_g = (UPPER * UPPER + d * d - FORE * FORE) / (2 * UPPER * d)
-        gamma = math.acos(max(-1.0, min(1.0, cos_g)))
-        cos_t = (UPPER * UPPER + FORE * FORE - d * d) / (2 * UPPER * FORE)
-        beta = math.pi - math.acos(max(-1.0, min(1.0, cos_t)))
-        base = math.atan2(uy, -uz)
-        best = None
-        for sgn in (1.0, -1.0):          # two solutions; keep the one with the lower elbow
-            a = base + sgn * gamma
-            elbow_z = 1.5 + UPPER * (-math.cos(a))
-            if best is None or elbow_z < best[0]:
-                best = (elbow_z, (a, -beta))
-        return best[1]
-
-    def breathe(self, f0, f1, step=12, amount=0.012):
-        base = self.loc
-        f = f0
-        up = True
-        while f <= f1:
-            key(self.root, f, location=(base.x, base.y, base.z + (amount if up else 0.0)))
-            up = not up
-            f += step
+def _celebrate(person, b):
+    """After the thumbs-up: a smile and a green check mark."""
+    person.smile(b.f1 - 22, M("band_white"))
+    person.check(b.f1 - 20, M("check_green"))
 
 
 # ---------------------------------------------------------------------------
@@ -792,20 +655,21 @@ def stage_welding(b, shot):
     valve = gas_cylinder(b, "CylOrange", (-2.3, -0.9, 0.2), M("cyl_grey"), M("band_white"))
     trolley(b, "Trolley", (-2.3, -0.9, 0.0))
 
-    welder = Human(b, "Welder", (0.0, 0.42, 0.0), 0.0, skin=M("skin_mid"), top=M("leather"),
-                   bottom=M("leather"), shoe=M("black"), hat=M("black"), hat_style="helmet", visor=M("visor"),
-                   apron=M("leather"), gloves=M("leather"))
+    welder = R.Person(b, "Welder", "jack", (0.0, 0.42, 0.0), 0.0,
+                      outfit("skin_mid", "leather", apron="leather", hands="leather"), f0=f0)
+    welder.hat("helmet", M("black"))
+    welder.visor(M("visor"))
     welder.breathe(f0, f1)
-    welder.rest(f0)
-    hand = welder.reach(f0, "r", (0.25, 0.05, 1.1))
-    welder.reach(f0, "l", (-0.1, 0.05, 1.1))
+    hand = welder.reach(f0, "l", (0.25, 0.05, 1.1))     # torch hand
+    welder.reach(f0, "r", (-0.1, 0.05, 1.1))            # steadying hand on the plate
     tip = Vector((0.2, 0.0, 1.03))
     torch(b, "CuttingTorch", tuple(hand), tuple(tip))
     hose(b, "HoseOrange", [valve, (-1.2, -0.7, 0.35), (-0.3, -0.4, 0.55), tuple(hand)],
          M("hose_orange"), 0.03, reveal=(f0, f0 + 20))
 
     sparks(b, M("spark"), lambda fr: (0.2, 0.0, 1.05), f0, f1, 60, random.Random(11), spread=1.3, lift=1.4)
-    welder.thumbs_up(b.f1 - 36, b.f1, side="l")
+    welder.thumbs_up(b.f1 - 36, b.f1, side="r")
+    _celebrate(welder, b)
     b.light("CutGlow", "POINT", (0.2, -0.1, 1.3), (1.0, 0.6, 0.25), 60.0, size=0.6)
     b.light("BenchFill", "AREA", (0.0, -2.0, 3.0), (1.0, 0.9, 0.8), 350.0, size=3.0, target=(0, 0.5, 0.8))
     b.overlay(shot, title_size=0.13)
@@ -830,13 +694,13 @@ def stage_oxyacetylene(b, shot):
     blue = gas_cylinder(b, "CylBlue", (-1.5, -0.9, 0.2), M("cyl_blue"), M("band_white"))
     trolley(b, "CartA", (-1.72, -0.9, 0.0), width=0.9)
 
-    welder = Human(b, "OxyWelder", (0.1, 0.42, 0.0), 0.0, skin=M("skin_deep"), top=M("leather"),
-                   bottom=M("leather"), shoe=M("black"), hat=M("black"), hat_style="helmet", visor=M("visor"),
-                   apron=M("leather"), gloves=M("leather"))
+    welder = R.Person(b, "OxyWelder", "jill", (0.1, 0.42, 0.0), 0.0,
+                      outfit("skin_deep", "leather", apron="leather", hands="leather"), f0=f0)
+    welder.hat("helmet", M("black"))
+    welder.visor(M("visor"))
     welder.breathe(f0, f1)
-    welder.rest(f0)
-    hand = welder.reach(f0, "r", (0.25, 0.05, 1.22))
-    welder.reach(f0, "l", (-0.05, 0.05, 1.22))
+    hand = welder.reach(f0, "l", (0.25, 0.05, 1.22))    # torch hand
+    welder.reach(f0, "r", (-0.05, 0.05, 1.22))
     tip = Vector((0.25, 0.0, 1.24))
     torch(b, "OxyTorch", tuple(hand), tuple(tip))
     oxy_flame = flame(b, "OxyFlame", tuple(tip), (0.25, -0.1, 1.22), M("glow_blue"), radius=0.03)
@@ -848,7 +712,8 @@ def stage_oxyacetylene(b, shot):
          reveal=(f0, f0 + 20))
     hose(b, "HoseBlue", [blue, (-1.1, -0.6, 0.25), (-0.3, -0.2, 0.45), (0.05, -0.05, 0.95), tuple(hand)],
          M("hose_blue"), 0.025, reveal=(f0 + 4, f0 + 24))
-    welder.thumbs_up(b.f1 - 36, b.f1, side="l")
+    welder.thumbs_up(b.f1 - 36, b.f1, side="r")
+    _celebrate(welder, b)
     sparks(b, M("spark"), lambda fr: (0.25, 0.0, 1.22), f0, f1, 20, random.Random(5), spread=0.7, lift=0.8)
     b.light("BenchFill", "AREA", (0.0, -2.0, 3.0), (1.0, 0.92, 0.85), 300.0, size=3.0, target=(0, 0.5, 0.8))
     b.overlay(shot, title_size=0.13)
@@ -882,13 +747,13 @@ def stage_domestic(b, shot):
     hose(b, "HoseKitchen", [valve, (-1.85, 1.75, 1.0), (-1.1, 1.7, 1.0), inlet],
          M("hose_orange"), 0.03, reveal=(f0, f0 + 24))
 
-    cook = Human(b, "Cook", (1.0, 2.25, 0.0), 0.0, skin=M("skin_light"), top=M("grey_shirt"),
-                 bottom=M("navy"), apron=M("apron_red"))
+    cook = R.Person(b, "Cook", "jill", (1.0, 2.25, 0.0), 0.0,
+                    outfit("skin_deep", "grey_shirt", trousers="navy", apron="apron_red"), f0=f0)
     cook.breathe(f0, f1)
-    cook.rest(f0)
     cook.reach(f0, "r", (0.9, 1.95, 1.05))
     cook.reach(f0, "l", (1.2, 1.95, 1.0))
     cook.thumbs_up(b.f1 - 36, b.f1, side="r")
+    _celebrate(cook, b)
     b.light("KitchenLight", "AREA", (0.0, -0.5, 3.0), (1.0, 0.92, 0.8), 500.0, size=3.0, target=(0, 1.2, 0.8))
     b.light("StoveGlow", "POINT", (-0.2, 1.4, 1.2), (0.45, 0.7, 1.0), 40.0, size=0.6)
     b.overlay(shot, title_size=0.13)
@@ -926,13 +791,14 @@ def stage_commercial(b, shot):
     for x in (-0.3, 1.5):
         for y in (-0.4, 0.1):
             b.obj("PassLeg", G.box(0.06, 0.06, 0.95), M("dark_steel"), loc=(x, y, 0.47))
-    chef = Human(b, "Chef", (0.6, 0.3, 0.0), 0.0, skin=M("skin_light"), top=M("chef_white"),
-                 bottom=M("navy"), apron=M("black"), hat=M("chef_white"), hat_style="toque")
+    chef = R.Person(b, "Chef", "jack", (0.6, 0.3, 0.0), 0.0,
+                    outfit("skin_mid", "chef_white", trousers="navy", apron="black"), f0=f0)
+    chef.hat("toque", M("chef_white"))
     chef.breathe(f0, f1)
-    chef.rest(f0)
     chef.reach(f0, "r", (0.3, -0.1, 1.07))
     chef.reach(f0, "l", (0.9, -0.1, 1.07))
     chef.thumbs_up(b.f1 - 36, b.f1, side="r")
+    _celebrate(chef, b)
     b.light("PassLight", "AREA", (0.0, -1.0, 3.2), (1.0, 0.95, 0.85), 450.0, size=3.0, target=(0, 1.5, 0.9))
     b.overlay(shot, title_size=0.13)
 
@@ -967,21 +833,22 @@ def stage_outdoor(b, shot):
     b.obj("Generator", G.box(0.7, 0.45, 0.5), M("dark_steel"), loc=(2.6, -0.4, 0.25), bevel=0.02)
     b.obj("GenHandle", G.box(0.5, 0.04, 0.04), M("black"), loc=(2.6, -0.65, 0.55))
 
-    camper_a = Human(b, "CamperA", (-0.6, -0.2, 0.0), 0.0, skin=M("skin_mid"), top=M("hi_vis"),
-                     bottom=M("navy"))
+    camper_a = R.Person(b, "CamperA", "jack", (-0.6, -0.2, 0.0), 0.0,
+                        outfit("skin_mid", "hi_vis", trousers="navy", sleeves="hi_vis"), f0=f0)
     camper_a.breathe(f0, f1)
-    camper_a.rest(f0)
-    camper_a.reach(f0, "r", (-0.3, -0.55, 1.15))
-    camper_a.reach(f0, "l", (-0.75, -0.55, 1.1))
-    camper_b = Human(b, "CamperB", (1.5, -0.2, 0.0), 0.0, skin=M("skin_deep"), top=M("overalls"),
-                     bottom=M("navy"), hat=M("straw"), hat_style="straw")
+    camper_a.reach(f0, "l", (-0.3, -0.55, 1.15))
+    camper_a.reach(f0, "r", (-0.75, -0.55, 1.1))
+    camper_b = R.Person(b, "CamperB", "jill", (1.5, -0.2, 0.0), 0.0,
+                        outfit("skin_deep", "overalls", trousers="overalls", sleeves="grey_shirt"), f0=f0)
+    camper_b.hat("straw", M("straw"))
     camper_b.breathe(f0, f1)
-    camper_b.rest(f0)
     camper_b.reach(f0, "r", (1.2, -0.55, 1.1))
-    camper_b.reach(f0, "l", (1.5, -0.55, 1.05))
+    camper_b.reach(f0, "l", (1.7, -0.55, 1.05))
 
     camper_a.thumbs_up(b.f1 - 36, b.f1, side="r")
+    _celebrate(camper_a, b)
     camper_b.thumbs_up(b.f1 - 36, b.f1, side="r")
+    _celebrate(camper_b, b)
     b.light("SunsetFill", "AREA", (-3.0, -3.0, 4.0), (1.0, 0.8, 0.6), 400.0, size=5.0, target=(0, 1, 1))
     b.overlay(shot, title_size=0.13)
 
@@ -1027,13 +894,15 @@ def stage_agriculture(b, shot):
     dfl = flame(b, "DryerFlame", (3.6, 2.2, 0.5), (3.6, 2.2, 0.1), M("glow_orange"), radius=0.2)
     flicker(dfl, f0, f1, (1, 1, 1), 0.2, random.Random(71))
 
-    farmer = Human(b, "Farmer", (1.2, -0.6, 0.0), 0.0, skin=M("skin_deep"), top=M("overalls"),
-                   bottom=M("overalls"), hat=M("straw"), hat_style="straw", gloves=M("leather"))
+    farmer = R.Person(b, "Farmer", "jack", (1.2, -0.6, 0.0), 0.0,
+                      outfit("skin_deep", "overalls", trousers="overalls", sleeves="grey_shirt", hands="leather"),
+                      f0=f0)
+    farmer.hat("straw", M("straw"))
     farmer.breathe(f0, f1)
-    farmer.rest(f0)
     farmer.reach(f0, "r", (0.95, -0.5, 1.1))
     farmer.reach(f0, "l", (1.35, -0.5, 1.1))
     farmer.thumbs_up(b.f1 - 36, b.f1, side="r")
+    _celebrate(farmer, b)
     b.light("BarnSun", "AREA", (0.0, -2.0, 3.6), (1.0, 0.85, 0.65), 380.0, size=4.0, target=(0, 1, 0.8))
     b.overlay(shot, title_size=0.13)
 
@@ -1066,18 +935,18 @@ def stage_manufacturing(b, shot):
     b.obj("AirDrop", G.cylinder(0.04, 1.2, 12), M("pipe_silver"), loc=(-0.9, 2.4, 1.4), smooth=True)
     outlet = (-0.9, 2.4, 1.4)
 
-    worker = Human(b, "Worker", (0.6, 0.88, 0.0), 0.0, skin=M("skin_light"), top=M("grey_shirt"),
-                   bottom=M("navy"), hat=M("hardhat"), hat_style="hardhat", vest=M("hi_vis"),
-                   gloves=M("leather"))
+    worker = R.Person(b, "Worker", "jill", (0.6, 0.88, 0.0), 0.0,
+                      outfit("skin_mid", "hi_vis", trousers="navy", sleeves="grey_shirt", hands="leather"), f0=f0)
+    worker.hat("hardhat", M("hardhat"))
     worker.breathe(f0, f1)
-    worker.rest(f0)
-    hand = worker.reach(f0, "r", (0.4, 0.5, 1.04))
+    hand = worker.reach(f0, "r", (0.4, 0.5, 1.04))     # air tool hand
     worker.reach(f0, "l", (0.8, 0.5, 1.04))
     tool_tip = hand + (Vector((0.4, 0.3, 1.0)) - hand).normalized() * 0.4
     torch(b, "AirTool", tuple(hand), tuple(tool_tip), body_mat=M("steel"))
     hose(b, "HoseAir", [outlet, (-0.7, 1.5, 1.6), (-0.1, 0.5, 1.7), tuple(hand)], M("hose_blue"), 0.025,
          reveal=(f0, f0 + 24))
     worker.thumbs_up(b.f1 - 36, b.f1, side="l")
+    _celebrate(worker, b)
     b.light("LineLight", "AREA", (0.0, -1.5, 3.5), (0.95, 0.95, 1.0), 500.0, size=4.0, target=(0, 0.8, 0.8))
     b.overlay(shot, title_size=0.13)
 
