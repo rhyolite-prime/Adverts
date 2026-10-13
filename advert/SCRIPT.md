@@ -10,7 +10,7 @@ Each application gets its own 5 second stage. The intro and outro bookend the se
 
 | Time | Stage | Key selling point (on screen) | Spec line (on screen) |
 |---|---|---|---|
-| 00:00-00:05 | Introducing | Built for reliability and safety | RhyolitePrime Industrial PVC Gas Hoses |
+| 00:00-00:05 | Introducing | High Quality Industrial PVC Gas Hose / from Rhyolite Prime | RhyolitePrime Industrial PVC Gas Hoses |
 | 00:05-00:10 | Welding & Cutting | Consistent performance under pressure | 3/8 inch PVC gas hose \| Orange |
 | 00:10-00:15 | Oxyacetylene Welding | Built for high-pressure industrial work | 5/16 inch PVC gas hose \| Red (fuel) and blue (oxygen) |
 | 00:15-00:20 | Domestic Gas Connections | Reliable, safety-focused connections at home | 3/8 inch PVC gas hose \| Orange |
@@ -18,11 +18,11 @@ Each application gets its own 5 second stage. The intro and outro bookend the se
 | 00:25-00:30 | Outdoor & Camping | Built to withstand the outdoors | 5/16 inch PVC gas hose \| Red |
 | 00:30-00:35 | Agriculture & Farms | Dependable supply for farm operations | 3/8 inch PVC gas hose \| Orange |
 | 00:35-00:40 | Manufacturing & Industrial Lines | Non-corrosive gases and compressed air | 5/16 inch PVC gas hose \| Blue |
-| 00:40-00:45 | Why RhyolitePrime | Competitive bulk pricing / Reliable availability / Responsive technical support | Talk to us about bulk and recurring orders |
+| 00:40-00:45 | Why RhyolitePrime | Competitive bulk pricing / Reliable availability / Responsive technical support | WhatsApp 055-385-9517   \|   Call 053-276-0832   \|   sales@rhyoliteprime.com |
 
 ## 1. Introducing (00:00-00:05)
 
-**Key selling point on screen:** Built for reliability and safety
+**Key selling point on screen:** High Quality Industrial PVC Gas Hose / from Rhyolite Prime
 
 **Spec line:** RhyolitePrime Industrial PVC Gas Hoses
 
@@ -120,7 +120,7 @@ Each application gets its own 5 second stage. The intro and outro bookend the se
 
 **Key selling point on screen:** Competitive bulk pricing / Reliable availability / Responsive technical support
 
-**Spec line:** Talk to us about bulk and recurring orders
+**Spec line:** WhatsApp 055-385-9517   |   Call 053-276-0832   |   sales@rhyoliteprime.com
 
 **Visual:** Back to the dark studio. The orange hose from the intro loops into a circle and the three commitments appear one by one. The wordmark returns as the final card.
 

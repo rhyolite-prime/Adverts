@@ -24,7 +24,7 @@ SHOTS = [
     {
         "id": "intro",
         "label": "INTRODUCING",
-        "title": "Built for reliability and safety",
+        "title": "High Quality Industrial PVC Gas Hose\nfrom Rhyolite Prime",
         "spec": "RhyolitePrime Industrial PVC Gas Hoses",
         "hose": "orange",
         "visual": (
@@ -133,7 +133,7 @@ SHOTS = [
         "id": "outro",
         "label": "WHY RHYOLITEPRIME",
         "title": "Competitive bulk pricing\nReliable availability\nResponsive technical support",
-        "spec": "Talk to us about bulk and recurring orders",
+        "spec": "WhatsApp 055-385-9517   |   Call 053-276-0832   |   sales@rhyoliteprime.com",
         "hose": "orange",
         "visual": (
             "Back to the dark studio. The orange hose from the intro loops into a circle and the three "
