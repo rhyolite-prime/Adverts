@@ -213,9 +213,18 @@ class Person:
                 hand.bone.matrix_local.inverted() @ t3.bone.matrix_local,
                 Vector((0.0, t3.bone.length, 0.0)),
             )
-        # Face front and mouth height measured on the Jack and Jill meshes (figure metres).
-        self.face_y, self.mouth_z = (-0.136, 1.47) if kind == "jack" else (-0.120, 1.44)
-        self.chest_y = -0.095 if kind == "jack" else -0.125     # torso front at chest height, plus a margin
+        # Face front and feature heights measured on the Jack and Jill meshes (figure metres).
+        if kind == "jack":
+            self.face_y, self.mouth_z = -0.130, 1.482
+            self.nose_y, self.nose_z = -0.138, 1.532
+            self.eye_x, self.eye_y, self.eye_z = 0.034, -0.140, 1.572
+            self.chest_y = -0.095
+        else:
+            self.face_y, self.mouth_z = -0.116, 1.462
+            self.nose_y, self.nose_z = -0.120, 1.512
+            self.eye_x, self.eye_y, self.eye_z = 0.032, -0.120, 1.552
+            self.chest_y = -0.125
+        self._build_face(mats)
         self.rest(f0)
 
     # --- materials -------------------------------------------------------
@@ -475,21 +484,117 @@ class Person:
             up = not up
             f += step
 
-    # --- attached props ------------------------------------------------------
+    # --- attached props & facial features ------------------------------------
     def _attach(self, name, geom, mat, loc_m=(0, 0, 0), rot=(0, 0, 0), scale_m=(1, 1, 1), smooth=True):
         """Mesh that stays with the figure. `geom` is in metres; the object is scaled back to metres."""
         return self.b.obj(name, geom, mat, loc=tuple(self._rig(loc_m)), rot=rot,
                           scale=tuple(v / S for v in scale_m), parent=self.arm, smooth=smooth)
 
+    def _build_face(self, mats):
+        """Attach 3D eyes (sclera, large dark iris/pupil, upper eyelid, lash line, eyebrows) and sculpted nose."""
+        skin_mat = mats["skin"]
+        brow_mat = mats.get("hair", skin_mat)
+        eye_white = mats.get("eye_white", skin_mat)
+        eye_dark = mats.get("eye_dark", brow_mat)
+        eye_glint = mats.get("eye_glint", eye_white)
+
+        # Nose: prominent 3D bridge, rounded bulb tip, side alae (wings), and dark nostril openings underneath
+        ny, nz = self.nose_y, self.nose_z
+        self._attach(
+            f"{self.name}_nose_bridge",
+            G.cylinder(0.0115, 0.044, 16, z0=0.0, r_top=0.0075),
+            skin_mat,
+            loc_m=(0.0, ny - 0.011, nz - 0.006),
+            rot=(0.28, 0.0, 0.0),
+        )
+        self._attach(
+            f"{self.name}_nose_tip",
+            G.sphere(0.0155, 18, 12, sx=1.22, sy=1.18, sz=0.92),
+            skin_mat,
+            loc_m=(0.0, ny - 0.017, nz - 0.005),
+        )
+        for side_lbl, sg in (("l", 1.0), ("r", -1.0)):
+            self._attach(
+                f"{self.name}_nose_wing_{side_lbl}",
+                G.sphere(0.010, 14, 10, sx=1.15, sy=0.95, sz=0.80),
+                skin_mat,
+                loc_m=(sg * 0.013, ny - 0.010, nz - 0.009),
+            )
+            self._attach(
+                f"{self.name}_nostril_hole_{side_lbl}",
+                G.sphere(0.0050, 12, 8, sx=1.15, sy=0.85, sz=0.45),
+                eye_dark,
+                loc_m=(sg * 0.009, ny - 0.014, nz - 0.014),
+            )
+
+        # Eyes: almond sclera, large forward iris/pupil, upper eyelid hood, lash line, catchlight, and eyebrow
+        ex, ey, ez = self.eye_x, self.eye_y, self.eye_z
+        self._brows = []
+        blink_parts = []
+        for side_lbl, sg in (("l", 1.0), ("r", -1.0)):
+            sclera = self._attach(
+                f"{self.name}_eye_sclera_{side_lbl}",
+                G.sphere(0.0135, 18, 12, sx=1.22, sy=0.30, sz=0.76),
+                eye_white,
+                loc_m=(sg * ex, ey - 0.0025, ez),
+            )
+            iris = self._attach(
+                f"{self.name}_eye_iris_{side_lbl}",
+                G.sphere(0.0098, 16, 10, sx=0.98, sy=0.36, sz=0.88),
+                eye_dark,
+                loc_m=(sg * (ex * 0.94), ey - 0.0068, ez - 0.0005),
+            )
+            glint = self._attach(
+                f"{self.name}_eye_glint_{side_lbl}",
+                G.sphere(0.0026, 10, 8),
+                eye_glint,
+                loc_m=(sg * (ex * 0.94) - 0.003, ey - 0.0108, ez + 0.0028),
+            )
+            # Skin-toned upper eyelid + dark upper lash line so the eyes look warm and natural
+            self._attach(
+                f"{self.name}_eyelid_{side_lbl}",
+                G.box(0.032, 0.012, 0.006),
+                skin_mat,
+                loc_m=(sg * ex, ey - 0.004, ez + 0.0078),
+                rot=(0.0, sg * -0.05, 0.0),
+            )
+            self._attach(
+                f"{self.name}_eyelash_{side_lbl}",
+                G.box(0.030, 0.011, 0.0028),
+                eye_dark,
+                loc_m=(sg * ex, ey - 0.0055, ez + 0.0052),
+                rot=(0.0, sg * -0.05, 0.0),
+            )
+            brow = self._attach(
+                f"{self.name}_brow_{side_lbl}",
+                G.box(0.028, 0.009, 0.0052),
+                brow_mat,
+                loc_m=(sg * ex, ey - 0.005, ez + 0.021),
+                rot=(0.0, sg * -0.08, 0.0),
+            )
+            self._brows.append(brow)
+            blink_parts.extend((sclera, iris, glint))
+
+        # Quick natural blink mid-stage
+        bf = self.f0 + 44
+        full_s = 1.0 / S
+        for o in blink_parts:
+            o.scale = (full_s, full_s, full_s)
+            o.keyframe_insert("scale", frame=bf - 2)
+            o.scale = (full_s, full_s, full_s * 0.12)
+            o.keyframe_insert("scale", frame=bf)
+            o.scale = (full_s, full_s, full_s)
+            o.keyframe_insert("scale", frame=bf + 3)
+
     def hat(self, style, mat):
-        """Headwear sitting on the head (head top is about 1.75 m, face front is at y = -0.14 m)."""
+        """Headwear sitting on the head, positioned above the eyes and eyebrows."""
         if style == "helmet":
-            self._attach(f"{self.name}_helmet", G.sphere(0.158, 28, 18), mat, loc_m=(0, 0.0, 1.63))
+            self._attach(f"{self.name}_helmet", G.sphere(0.158, 28, 18, sz=0.82), mat, loc_m=(0, 0.012, 1.665))
         elif style == "toque":
             self._attach(f"{self.name}_toque", G.cylinder(0.125, 0.22, 20, z0=0.0), mat, loc_m=(0, 0.0, 1.70))
             self._attach(f"{self.name}_toque_top", G.sphere(0.135, 16, 10), mat, loc_m=(0, 0.0, 1.92))
         elif style == "hardhat":
-            self._attach(f"{self.name}_hardhat", G.sphere(0.16, 20, 12, sz=0.6), mat, loc_m=(0, 0.0, 1.68))
+            self._attach(f"{self.name}_hardhat", G.sphere(0.16, 20, 12, sz=0.6), mat, loc_m=(0, 0.008, 1.69))
         elif style == "straw":
             self._attach(f"{self.name}_brim", G.cylinder(0.27, 0.02, 24, z0=0.0), mat, loc_m=(0, 0.0, 1.73))
             self._attach(f"{self.name}_crown", G.cylinder(0.14, 0.13, 18, z0=0.0), mat, loc_m=(0, 0.0, 1.73))
@@ -500,10 +605,10 @@ class Person:
             raise ValueError(style)
 
     def visor(self, mat, flip_frame=None):
-        """Welding visor across the face. Flips up onto the helmet brow before the smile/thumbs-up."""
-        down_loc = tuple(self._rig((0, -0.155, 1.645)))
-        up_loc = tuple(self._rig((0, -0.135, 1.725)))
-        v = self._attach(f"{self.name}_visor", G.box(0.2, 0.03, 0.09), mat, loc_m=(0, -0.155, 1.645))
+        """Welding visor across the eyes during work; flips up onto the helmet brow before the smile."""
+        down_loc = tuple(self._rig((0, -0.155, self.eye_z + 0.005)))
+        up_loc = tuple(self._rig((0, -0.132, 1.735)))
+        v = self._attach(f"{self.name}_visor", G.box(0.2, 0.03, 0.085), mat, loc_m=(0, -0.155, self.eye_z + 0.005))
         ff = (self.f0 + 78) if flip_frame is None else flip_frame
         if ff:
             v.location = down_loc
@@ -519,10 +624,17 @@ class Person:
         return v
 
     def smile(self, frame, mat):
-        """Smile: a curved bright arc across the mouth. The rig has no face controls or shape keys."""
-        y, z = self.face_y - 0.005, self.mouth_z
-        pts = [(-0.038, y, z + 0.015), (0.0, y - 0.005, z - 0.002), (0.038, y, z + 0.015)]
-        return self._curve(f"{self.name}_smile", pts, mat, bevel=0.0062, frame=frame, poly=False)
+        """Smile: a curved bright arc across the mouth, accompanied by a cheerful eyebrow lift."""
+        for brow in getattr(self, "_brows", ()):
+            base_loc = tuple(brow.location)
+            lift_loc = (base_loc[0], base_loc[1], base_loc[2] + 0.004 / S)
+            brow.location = base_loc
+            brow.keyframe_insert("location", frame=frame - 2)
+            brow.location = lift_loc
+            brow.keyframe_insert("location", frame=frame + 8)
+        y, z = self.face_y - 0.006, self.mouth_z
+        pts = [(-0.036, y, z + 0.013), (0.0, y - 0.005, z - 0.003), (0.036, y, z + 0.013)]
+        return self._curve(f"{self.name}_smile", pts, mat, bevel=0.0060, frame=frame, poly=False)
 
     def check(self, frame, mat, badge_mat=None, rim_mat=None):
         """Green check mark on a circular chest badge, facing the camera (-Y)."""
