@@ -1,5 +1,6 @@
 # Generated advert outputs (renders, .blend autosaves, music, MP4s)
 advert/output/
+shortcode-express/output/
 *.blend1
 *.blend2
 __pycache__/
