@@ -42,7 +42,10 @@ To match the physical hoses shown in `advert/images/all-products.jpg`:
    - **Stage 6 (Outdoor & Camping):** Campers tend the sausages on the portable grill with tongs before both celebrating.
    - **Stage 7 (Agriculture & Farms):** Farmer gestures to inspect the hanging gas brooder and chicks before giving the thumbs-up.
    - **Stage 8 (Manufacturing):** Factory worker actuates the pneumatic tool downward on passing crates, then lowers the tool as the left hand gives a thumbs-up.
-2. **Welder Visor Flip-Up & Emissive Smile (`Person.visor`, `Person.smile`):**
+2. **3D Facial Features: Eyes, Eyelids, Eyebrows & Sculpted Nose (`Person._build_face`, `Person.visor`, `Person.smile`):**
+   - Added full 3D facial features (`_build_face`) to every character (both `jack` and `jill` rigs):
+     - **Eyes:** Almond-shaped sclera (`eye_white`), large glossy dark iris/pupil (`eye_dark`), bright specular catchlight glint, skin-toned upper eyelid hood, dark upper lash line, and eyebrows (`hair_coily`) with a natural mid-stage blink (`f0 + 44`) and an expressive eyebrow lift on the smile.
+     - **Nose:** Sculpted 3D nose bridge, rounded nose tip, side alae/wings in the character's skin material, and dark underside nostril openings.
    - Animated welding visors in Stages 2 & 3 to flip up onto the helmet brow at `f1 - 38` just before the smile and thumbs-up, and upgraded the smile material (`smile_white`) with clean self-illumination so it reads clearly under every lighting setup.
 3. **Circular Badge for the Green Check Mark (`Person.check`):**
    - Framed the `#4bb543` check mark inside a dark-and-white circular trust badge (`check_badge`) offset toward the non-raised side of the chest so the thumbs-up arm never blocks it.

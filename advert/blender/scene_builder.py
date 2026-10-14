@@ -108,6 +108,8 @@ MATERIAL_DEFS = {
     "brass": dict(color=(0.84, 0.63, 0.24), rough=0.25, metal=1.0),
     "band_white": dict(color=(0.95, 0.95, 0.95), rough=0.45, bump=0.12, tex_scale=160),
     "smile_white": dict(color=(1.0, 1.0, 1.0), rough=0.2, emit=(1.0, 1.0, 1.0), emit_strength=2.2),
+    "eye_white": dict(color=(0.90, 0.88, 0.85), rough=0.22, coat=0.4, emit=(0.90, 0.88, 0.85), emit_strength=0.08),
+    "eye_dark": dict(color=(0.012, 0.008, 0.006), rough=0.08, coat=0.85),
     "grass": dict(color=(0.13, 0.36, 0.09), rough=0.95, bump=0.3, var=(0.22, 0.45, 0.12), tex_scale=30),
     "bark": dict(color=(0.25, 0.15, 0.08), rough=0.9, bump=0.4, tex_scale=20),
     "leaf": dict(color=(0.1, 0.3, 0.1), rough=0.9),
@@ -546,7 +548,13 @@ class Builder:
 
 def outfit(skin, torso, trousers=None, sleeves=None, shoes="black", hands=None, apron=None, hair="hair_coily"):
     """Material slots for a rigged character. Names refer to MATERIAL_DEFS."""
-    m = {"skin": M(skin), "torso": M(torso)}
+    m = {
+        "skin": M(skin),
+        "torso": M(torso),
+        "eye_white": M("eye_white"),
+        "eye_dark": M("eye_dark"),
+        "eye_glint": M("smile_white"),
+    }
     if trousers:
         m["trousers"] = M(trousers)
     if sleeves:
